@@ -216,7 +216,15 @@ split:
   to_fill_in:
     - destination.connection.bucket
     - source.connection.bucket
-owned: []
+owned:
+  -   - connection
+      - sas_folder_restructure_connection
+  -   - destination
+      - sas_restructured
+  -   - source
+      - sas_incoming
+  -   - trigger
+      - every_45_minutes
 split_by:
   task: decompose_pipeline
   skill: decomposing-pipeline-requirements
@@ -226,3 +234,12 @@ split_by:
   model: claude-sonnet-5-5
   prompt_version: '1'
 split_digest: 7e01409a4200a01b3795961a2b0f19d37253d77f3046a3d6df752a579152d54a
+split_approval:
+  by: '@jsandy16'
+  identity: github:jsandy16#195818633
+  at: '2026-10-17T16:21:01+00:00'
+  digest: 7e01409a4200a01b3795961a2b0f19d37253d77f3046a3d6df752a579152d54a
+  evidence:
+    url: https://github.com/jsandy16/AI-SDLC--PKF-V3/pull/4#issuecomment-6236501578
+    github_id: 195818633
+    head_sha: 65a4eb59e25c0c21db6d404ed34e2e809ece106e
