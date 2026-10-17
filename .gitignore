@@ -1,0 +1,15 @@
+# pkf Studio (local state)
+.pkf-studio/local.yaml
+.pkf-studio/jobs/
+.pkf-studio/worktrees/
+.pkf-studio/drafts/
+.pkf-studio/locks/
+.pkf-studio/terraform/
+.pkf-studio/cache/
+*.tfplan
+.terraform/
+__pycache__/
+*.pyc
+.venv/
+*/.llm/
+local-secrets/
