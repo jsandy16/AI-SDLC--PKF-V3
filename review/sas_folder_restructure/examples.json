@@ -1,0 +1,72 @@
+{
+  "ok": false,
+  "examples": [
+    {
+      "example": "cdar_routes",
+      "status": "needs_code",
+      "detail": "destination step 'compute_target_keys' has no code yet",
+      "output": null
+    },
+    {
+      "example": "cdap_routes",
+      "status": "needs_code",
+      "detail": "destination step 'compute_target_keys' has no code yet",
+      "output": null
+    },
+    {
+      "example": "idap_med_others",
+      "status": "needs_code",
+      "detail": "destination step 'compute_target_keys' has no code yet",
+      "output": null
+    },
+    {
+      "example": "anon_routes",
+      "status": "needs_code",
+      "detail": "destination step 'compute_target_keys' has no code yet",
+      "output": null
+    },
+    {
+      "example": "default_errors_and_skips",
+      "status": "needs_code",
+      "detail": "destination step 'compute_target_keys' has no code yet",
+      "output": null
+    }
+  ],
+  "issues": [
+    {
+      "severity": "error",
+      "file": "pipelines/sas_folder_restructure.yaml",
+      "loc": "examples.cdar_routes",
+      "msg": "destination step 'compute_target_keys' has no code yet",
+      "code": "example_failed"
+    },
+    {
+      "severity": "error",
+      "file": "pipelines/sas_folder_restructure.yaml",
+      "loc": "examples.cdap_routes",
+      "msg": "destination step 'compute_target_keys' has no code yet",
+      "code": "example_failed"
+    },
+    {
+      "severity": "error",
+      "file": "pipelines/sas_folder_restructure.yaml",
+      "loc": "examples.idap_med_others",
+      "msg": "destination step 'compute_target_keys' has no code yet",
+      "code": "example_failed"
+    },
+    {
+      "severity": "error",
+      "file": "pipelines/sas_folder_restructure.yaml",
+      "loc": "examples.anon_routes",
+      "msg": "destination step 'compute_target_keys' has no code yet",
+      "code": "example_failed"
+    },
+    {
+      "severity": "error",
+      "file": "pipelines/sas_folder_restructure.yaml",
+      "loc": "examples.default_errors_and_skips",
+      "msg": "destination step 'compute_target_keys' has no code yet",
+      "code": "example_failed"
+    }
+  ]
+}
