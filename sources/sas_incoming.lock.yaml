@@ -1,0 +1,65 @@
+# sources/sas_incoming.lock.yaml — plan, step tests, simulation, code tests and approvals.
+# Written by `pkf plan/code/test/approve-…`; approvals are a person's decision. Do not edit by hand.
+lock_version: 2
+kind: source
+name: sas_incoming
+requirement_sha256: 273bbe43c960090c371077821477335fdb75da6b0199c446a5cabcc3a3c5919b
+plan:
+  summary: Lists all objects under incoming/ in the S3 bucket, keeps only files that sit inside a study folder and have 
+    a '.' extension in the file name, and makes each remaining file its own package. Folder markers, files directly 
+    under incoming/ and extensionless files are skipped without error.
+  steps:
+    - id: list_incoming
+      op: list
+      title: List everything under incoming/
+      params:
+        root: incoming/
+    - id: keep_study_files
+      op: select
+      title: Keep files in a study folder whose name has an extension
+      params:
+        regex: ^[^/]+/(?:[^/]+/)*[^/]+\.[^/]+$
+    - id: one_package_per_file
+      op: split
+      title: One package per file
+      params:
+        by: regex
+        regex: ^(?P<key>.+)$
+  assumptions:
+    - Bucket and region (eu-north-1) come from the component settings, not from a step.
+    - Paths are relative to incoming/, so the first path segment is the study ID, kept exactly as written.
+    - "The select regex is applied to the path relative to incoming/ and requires: study folder, then optional subfolders,
+      then a file name containing a '.' with characters after it."
+    - Splitting by a regex whose key is the whole path gives exactly one package per file, with the path inside the 
+      package unchanged.
+    - Dot-leading names like '.hidden' count as having an extension (the name contains '.' with text after it).
+    - Folder markers (keys ending in '/') never match the regex, so they are skipped.
+  ambiguities: []
+  step_tests: {}
+planned_by:
+  task: plan_component
+  skill: planning-pipeline-components
+  skill_sha256: 7690c7e461337894d9a974196cfce1179f75f9cfb20f43d663bc098712022fc0
+  prompt_sha256: 5f5facf673f6c998f9ee8777f7afca0f1db6bbe2845afa00624985ae9741d82f
+  schema_sha256: 6c2d314e688ab2eb8b56d8679ba6c23f31b68deb03072c6dc1e898a70263ef01
+  model: claude-sonnet-5-5
+  prompt_version: '1'
+tests_written_by: {}
+simulation:
+  - example: normal_files_one_package_each
+    status: pass
+    detail: matches the expected output
+    output:
+      -   - ABCD-0000-0000/x.pdf
+      -   - d0000c00004/root/cdar/ar/csr/adam/a.sas7bdat
+  - example: skips
+    status: pass
+    detail: matches the expected output
+    output:
+      -   - S1/data/a.csv
+  - example: deep_nesting
+    status: pass
+    detail: matches the expected output
+    output:
+      -   - 04-3077/a/b/c/d/e/f.sas7bdat
+plan_digest: 0595e149ce52b8978ec049e0d41c312f66ed456eb27e7e5034379b042c5ffa14
