@@ -1,0 +1,28 @@
+2026-10-18 20:26:31,362 INFO pkf: trigger: {'messages': 1, 'events': 1, 'event_errors': 0, 'unmatched_acknowledged': 0}
+2026-10-18 20:26:33,299 WARNING pkf: only the previewed files: 6 kept; 0 listed file(s) excluded (new or changed since the preview); 0 previewed file(s) no longer listed
+2026-10-18 20:26:33,302 INFO pkf: planned 6 package(s); 0 event(s) or file(s) failed
+2026-10-18 20:26:33,337 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:26:37,860 INFO pkf.delivery: incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat -> d0000c00004/primary/other/raw/bdr200/c.sas7bdat: rule 5
+2026-10-18 20:26:38,115 INFO pkf: d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat -> d0000c00004/primary/other/raw/bdr200/c.sas7bdat [moved] rule 5
+2026-10-18 20:26:38,121 INFO pkf: package sas_incoming_20261018 delivered: {'index': 0, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved': 1}}
+2026-10-18 20:26:38,131 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:26:42,617 INFO pkf.delivery: incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat -> d0000c00004/primary/complete/adam/a.sas7bdat: rule 5
+2026-10-18 20:26:42,875 INFO pkf: d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat -> d0000c00004/primary/complete/adam/a.sas7bdat [moved] rule 5
+2026-10-18 20:26:42,877 INFO pkf: package sas_incoming_20261018 delivered: {'index': 1, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved': 1}}
+2026-10-18 20:26:42,884 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:26:46,956 INFO pkf.delivery: incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/ia100/sdtm/dev/data/data_area/b.sas7bdat -> d0000c00004/primary/interim/sdtm/ia_100/b.sas7bdat: rule 5
+2026-10-18 20:26:47,211 INFO pkf: d0000c00004/root/cdar/d000/d0000c00004/ar/ia100/sdtm/dev/data/data_area/b.sas7bdat -> d0000c00004/primary/interim/sdtm/ia_100/b.sas7bdat [moved] rule 5
+2026-10-18 20:26:47,213 INFO pkf: package sas_incoming_20261018 delivered: {'index': 2, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved': 1}}
+2026-10-18 20:26:47,220 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:26:53,779 INFO pkf.delivery: incoming/s1/data_reuse/idap_x/adam/v1/d.sas7bdat -> s1/internal_reuse/adam/v1/d.sas7bdat: rule 2
+2026-10-18 20:26:54,030 INFO pkf: s1/data_reuse/idap_x/adam/v1/d.sas7bdat -> s1/internal_reuse/adam/v1/d.sas7bdat [moved] rule 2
+2026-10-18 20:26:54,034 INFO pkf: package sas_incoming_20261018 delivered: {'index': 3, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved': 1}}
+2026-10-18 20:26:54,046 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:27:03,074 INFO pkf.delivery: incoming/s1/root/cdar/x/adam/f.sas7bdat -> error/s1/root/cdar/x/adam/f.sas7bdat: cannot derive: no ar folder
+2026-10-18 20:27:03,324 INFO pkf: s1/root/cdar/x/adam/f.sas7bdat -> error/s1/root/cdar/x/adam/f.sas7bdat [moved_to_error] cannot derive: no ar folder
+2026-10-18 20:27:03,333 INFO pkf: package sas_incoming_20261018 delivered: {'index': 4, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved_to_error': 1}}
+2026-10-18 20:27:03,357 INFO pkf: package sas_incoming_20261018: 1 file(s), 4 bytes, delivered directly (no staging)
+2026-10-18 20:27:10,050 INFO pkf.delivery: incoming/s1/some/plain/path/e.sas7bdat -> s1/some/plain/path/e.sas7bdat: rule 7
+2026-10-18 20:27:10,301 INFO pkf: s1/some/plain/path/e.sas7bdat -> s1/some/plain/path/e.sas7bdat [moved] rule 7
+2026-10-18 20:27:10,303 INFO pkf: package sas_incoming_20261018 delivered: {'index': 5, 'destination': 's3://dev-dpl-dstore-sas-eu-north-1-992382551516', 'package': 'sas_incoming_20261018', 'files': 1, 'uploaded': 1, 'skipped_identical': 0, 'bytes': 4, 'statuses': {'moved': 1}}
+2026-10-18 20:27:10,449 INFO pkf: run summary: {"bytes": 24, "deferred_messages": 0, "deferred_packages": 0, "delivered": 6, "destinations": ["s3://dev-dpl-dstore-sas-eu-north-1-992382551516"], "events": 1, "excluded_since_preview": 0, "failed_events": [], "failed_packages": [], "files": 6, "missing_since_preview": 0, "packages": 6, "pipeline": "sas_folder_restructure", "planned_files": 6, "run_id": "local__20261018T145352", "runtime_version": "0.5.0", "skipped_identical": 0, "statuses": {"moved": 5, "moved_to_error": 1}, "uploaded": 6}
