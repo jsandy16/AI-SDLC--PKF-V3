@@ -435,12 +435,75 @@ code:
   sha256: 80117e12912ad5bfeee06545755b883e8e11dbe95cd4931717de381586a22d28
   problems: []
   tests:
-    - example: all
-      status: fail
-      detail: "code failed to load: ges\\moto\\core\\models.py\", line 17, in <module>\n    from unittest.mock import patch\n\
-        \  File \"C:\\Program Files\\Python312\\Lib\\unittest\\mock.py\", line 26, in <module>\n    import asyncio\n  File
-        \"C:\\Program Files\\Python312\\Lib\\asyncio\\__init__.py\", line 43, in <module>\n    from .windows_events import
-        *\n  File \"C:\\Program Files\\Python312\\Lib\\asyncio\\windows_events.py\", line 26, in <module>\n    from . import
-        windows_utils\n  File \"C:\\Program Files\\Python312\\Lib\\asyncio\\windows_utils.py\", line 125, in <module>\n  \
-        \  class Popen(subprocess.Popen):\nTypeError: function() argument 'code' must be code, not str\n"
-  tested_at: '2026-10-18T06:34:23+00:00'
+    - example: cdar_csr
+      status: pass
+      detail: matches the expected output
+    - example: cdap_interim
+      status: pass
+      detail: matches the expected output
+    - example: anon_other
+      status: pass
+      detail: matches the expected output
+    - example: default_passthrough
+      status: pass
+      detail: matches the expected output
+    - example: no_rule_to_error
+      status: pass
+      detail: matches the expected output
+    - case: cdar_csr
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdap_interim
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdap_csr
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: idap_last_folder
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: anon_interim
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdar_no_ar_error
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: others_and_preplaced
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: default_passthrough
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: normal_move_and_tag
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: error_file_moved_no_tag
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: copy_fails_source_kept
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: tagging_fails_still_moved
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: existing_target_overwritten_tags_replaced
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: delete_fails_independent_files
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+  tested_at: '2026-10-18T07:36:29+00:00'
