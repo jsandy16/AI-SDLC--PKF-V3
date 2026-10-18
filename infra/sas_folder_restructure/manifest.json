@@ -20,6 +20,7 @@
       "prefix": "",
       "type": "s3"
     },
+    "source_versioning": "Enabled",
     "staging": null,
     "warnings": [
       "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-sas-eu-north-1-992382551516"

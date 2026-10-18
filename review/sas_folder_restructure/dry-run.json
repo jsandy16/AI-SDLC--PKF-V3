@@ -1,13 +1,26 @@
 {
-  "ok": false,
-  "issues": [
-    {
-      "msg": "no valid AWS credentials (ExpiredToken): run aws sso login --profile my-custom-profile (or source ~/pkf/env.sh), then try again",
-      "code": "no_credentials",
-      "severity": "error"
-    }
-  ],
-  "dry_run": null,
-  "caller_arn": null,
-  "source_versioning": null
+  "ok": true,
+  "issues": [],
+  "dry_run": {
+    "pipeline": "sas_folder_restructure",
+    "run_id": "local__20261018T144102",
+    "read_events": {
+      "messages": 1,
+      "events": 1,
+      "event_errors": 0,
+      "unmatched_acknowledged": 0
+    },
+    "packages": 0,
+    "files": 0,
+    "failed_events": [],
+    "deferred_packages": 0,
+    "delivery": "custom_delivery",
+    "targets_by_prefix": {},
+    "sample": [],
+    "sample_truncated": false,
+    "max_packages": null,
+    "note": "custom delivery: the approved code receives 0 transfer(s); if it moves files, up to 0 source object(s) are deleted in the same bucket"
+  },
+  "caller_arn": "arn:aws:sts::992382551516:assumed-role/AWSReservedSSO_dataplane-ADMINN-cust-ps_5570818951c1bb9c/kmlh360@astrazeneca.net",
+  "source_versioning": "Enabled"
 }
