@@ -367,3 +367,126 @@ simulation:
     detail: stops at custom step 'compute_target_keys' until its code exists
     output:
 plan_digest: cd60c2a58af10449d21f9b96bade090a0a0189e8e3841076f11dd03f6ff7587b
+plan_approval:
+  by: '@jsandy16'
+  identity: github:jsandy16#195818633
+  at: '2026-10-18T06:30:40+00:00'
+  digest: cd60c2a58af10449d21f9b96bade090a0a0189e8e3841076f11dd03f6ff7587b
+  evidence:
+    url: https://github.com/jsandy16/AI-SDLC--PKF-V3/pull/6#issuecomment-6246572427
+    github_id: 195818633
+    head_sha: b42136339471c2be322b5345041f114702c728d8
+code:
+  file: sas_restructured.py
+  plan_digest: cd60c2a58af10449d21f9b96bade090a0a0189e8e3841076f11dd03f6ff7587b
+  generated_by:
+    compute_target_keys:
+      task: write_custom_step
+      skill: writing-custom-step-code
+      skill_sha256: a25c6e64d500004dd112f9882097e73383aad328cdfcb55e3ee5af6ed8d54725
+      prompt_sha256: 231b20601bc4fc392f51e016f25b47e8beddf9865a50554d99e7f210d17f338c
+      schema_sha256: afe1d56d5b1920604e4d87a8531b1f4cfece87931964407d56ebdb1fae7aa4bc
+      model: claude-sonnet-5-5
+      prompt_version: '1'
+      explanation: "Implements the pseudocode: per unplaced file, computes D from folders only, evaluates all 7 rules, and
+        counts a rule as matched even if its key is ERR. Exactly one match with a key sets that key; otherwise error/path.
+        Reasons are stored in vars under 'reason:'+path. Hand-traced all 8 test cases and the 5 examples (including anon_other
+        and no_rule_to_error); all match. The pre-placed key is left untouched."
+      attempts:
+        - attempt: 1
+          passed: true
+    move_and_tag:
+      task: write_custom_step
+      skill: writing-custom-step-code
+      skill_sha256: a25c6e64d500004dd112f9882097e73383aad328cdfcb55e3ee5af6ed8d54725
+      prompt_sha256: 8c7f74468abca6dd890a63462336b50d657db32181c53719753706839e7117c5
+      schema_sha256: afe1d56d5b1920604e4d87a8531b1f4cfece87931964407d56ebdb1fae7aa4bc
+      model: claude-sonnet-5-5
+      prompt_version: '1'
+      explanation: Implements the pseudocode per transfer, each in its own try blocks so one failure never stops the 
+        others. It copies server-side with CopySourceIfMatch and SSE args, HEADs the target and compares size, then 
+        deletes the source, then tags (a tagging failure only logs a warning). Error-key files (target_key == 
+        'error/'+path) get status moved_to_error and no tagging. Copy, check and delete failures return 'failed' and 
+        leave the source in place, as in the pseudocode. I traced the six test cases by hand and expect all to pass. I 
+        did not run them. The detail field takes params['reason:'+path] if present, else ''. This is a guess, because 
+        the transfer dict carries no reason.
+      attempts:
+        - attempt: 1
+          passed: true
+  generated_at: '2026-10-18T07:46:51+00:00'
+  code_policy: open
+  sha256: 88ef180d82c436497a2de0fbb4e3066b95b313c054e38f02ea0df1ffda4235b0
+  problems: []
+  tests:
+    - example: cdar_csr
+      status: pass
+      detail: matches the expected output
+    - example: cdap_interim
+      status: pass
+      detail: matches the expected output
+    - example: anon_other
+      status: pass
+      detail: matches the expected output
+    - example: default_passthrough
+      status: pass
+      detail: matches the expected output
+    - example: no_rule_to_error
+      status: pass
+      detail: matches the expected output
+    - case: cdar_csr
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdap_interim
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdap_csr
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: idap_last_folder
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: anon_interim
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: cdar_no_ar_error
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: others_and_preplaced
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: default_passthrough
+      step: compute_target_keys
+      status: pass
+      detail: matches the expected output
+    - case: normal_move_and_tag
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: error_file_moved_no_tag
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: copy_fails_source_kept
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: tagging_fails_still_moved
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: existing_target_overwritten_tags_replaced
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: delete_fails_independent_files
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+  tested_at: '2026-10-18T07:46:54+00:00'
