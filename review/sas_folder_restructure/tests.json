@@ -58,7 +58,7 @@
       "severity": "error",
       "file": "pipelines/sas_folder_restructure.yaml",
       "loc": "",
-      "msg": "destination 'sas_restructured' is not ready (code_failing): fix destinations/sas_restructured.py (or re-plan) and run pkf test destination sas_restructured",
+      "msg": "destination 'sas_restructured' is not ready (code_generated): review destinations/sas_restructured.py, then a person runs `pkf approve-code destination sas_restructured --by @handle`",
       "code": "component_not_approved"
     }
   ]
