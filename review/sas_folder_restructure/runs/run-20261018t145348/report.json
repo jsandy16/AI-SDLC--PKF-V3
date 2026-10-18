@@ -1,0 +1,286 @@
+{
+  "ok": true,
+  "issues": [],
+  "data": {
+    "tasks": [
+      {
+        "task": "check_source",
+        "result": {
+          "source": "bucket dev-dpl-dstore-sas-eu-north-1-992382551516 reachable"
+        }
+      },
+      {
+        "task": "check_destination",
+        "result": {
+          "destination": "bucket dev-dpl-dstore-sas-eu-north-1-992382551516 reachable"
+        }
+      },
+      {
+        "task": "read_events",
+        "result": {
+          "messages": 1,
+          "events": 1,
+          "event_errors": 0,
+          "unmatched_acknowledged": 0
+        }
+      },
+      {
+        "task": "plan_packages",
+        "result": [
+          {
+            "index": 0,
+            "package": "sas_incoming_20261018"
+          },
+          {
+            "index": 1,
+            "package": "sas_incoming_20261018"
+          },
+          {
+            "index": 2,
+            "package": "sas_incoming_20261018"
+          },
+          {
+            "index": 3,
+            "package": "sas_incoming_20261018"
+          },
+          {
+            "index": 4,
+            "package": "sas_incoming_20261018"
+          },
+          {
+            "index": 5,
+            "package": "sas_incoming_20261018"
+          }
+        ]
+      },
+      {
+        "task": "package[0].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 0,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[0].upload",
+        "result": {
+          "index": 0,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved": 1
+          }
+        }
+      },
+      {
+        "task": "package[1].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 1,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[1].upload",
+        "result": {
+          "index": 1,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved": 1
+          }
+        }
+      },
+      {
+        "task": "package[2].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 2,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[2].upload",
+        "result": {
+          "index": 2,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved": 1
+          }
+        }
+      },
+      {
+        "task": "package[3].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 3,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[3].upload",
+        "result": {
+          "index": 3,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved": 1
+          }
+        }
+      },
+      {
+        "task": "package[4].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 4,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[4].upload",
+        "result": {
+          "index": 4,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved_to_error": 1
+          }
+        }
+      },
+      {
+        "task": "package[5].extract",
+        "result": {
+          "stage": null,
+          "direct": true,
+          "index": 5,
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "bytes": 4
+        }
+      },
+      {
+        "task": "package[5].upload",
+        "result": {
+          "index": 5,
+          "destination": "s3://dev-dpl-dstore-sas-eu-north-1-992382551516",
+          "package": "sas_incoming_20261018",
+          "files": 1,
+          "uploaded": 1,
+          "skipped_identical": 0,
+          "bytes": 4,
+          "statuses": {
+            "moved": 1
+          }
+        }
+      },
+      {
+        "task": "ack",
+        "result": {
+          "deleted": 0,
+          "kept": 0
+        }
+      },
+      {
+        "task": "report",
+        "result": {
+          "pipeline": "sas_folder_restructure",
+          "run_id": "local__20261018T145352",
+          "runtime_version": "0.5.0",
+          "events": 1,
+          "packages": 6,
+          "delivered": 6,
+          "failed_packages": [],
+          "failed_events": [],
+          "files": 6,
+          "uploaded": 6,
+          "skipped_identical": 0,
+          "bytes": 24,
+          "destinations": [
+            "s3://dev-dpl-dstore-sas-eu-north-1-992382551516"
+          ],
+          "deferred_messages": 0,
+          "deferred_packages": 0,
+          "statuses": {
+            "moved": 5,
+            "moved_to_error": 1
+          },
+          "planned_files": 6,
+          "excluded_since_preview": 0,
+          "missing_since_preview": 0
+        }
+      }
+    ],
+    "summary": {
+      "pipeline": "sas_folder_restructure",
+      "run_id": "local__20261018T145352",
+      "runtime_version": "0.5.0",
+      "events": 1,
+      "packages": 6,
+      "delivered": 6,
+      "failed_packages": [],
+      "failed_events": [],
+      "files": 6,
+      "uploaded": 6,
+      "skipped_identical": 0,
+      "bytes": 24,
+      "destinations": [
+        "s3://dev-dpl-dstore-sas-eu-north-1-992382551516"
+      ],
+      "deferred_messages": 0,
+      "deferred_packages": 0,
+      "statuses": {
+        "moved": 5,
+        "moved_to_error": 1
+      },
+      "planned_files": 6,
+      "excluded_since_preview": 0,
+      "missing_since_preview": 0
+    }
+  },
+  "files_csv": "files.csv",
+  "rows": 6,
+  "counts": {
+    "moved": 5,
+    "moved_to_error": 1
+  },
+  "caller_arn": "arn:aws:sts::992382551516:assumed-role/AWSReservedSSO_dataplane-ADMINN-cust-ps_5570818951c1bb9c/kmlh360@astrazeneca.net",
+  "planned_sha256": "b15e6d656a4758041aad61519d1a43af40bb517f075e79636f0ff85cfdff33eb",
+  "planned_files": 6,
+  "log": "run.log"
+}
