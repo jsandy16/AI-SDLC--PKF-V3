@@ -1,0 +1,51 @@
+# source `sas_incoming`: written from the approved split of pipeline `sas_folder_restructure` (@jsandy16). Fill in every <REQUIRED>.
+api_version: pkf/v1
+kind: source
+name: sas_incoming
+description: from the source part of the pipeline requirement
+type: s3
+connection:
+  bucket: dev-dpl-dstore-sas-eu-north-1-992382551516
+  region: eu-north-1
+credentials:
+  provider: none
+params: {}
+requirement: "Read from the S3 bucket (region eu-north-1). List every object under the prefix incoming/ at any depth; paths
+  are relative to incoming/. Skip silently: folder markers (keys ending in '/'); files directly under incoming/ with no study
+  folder (e.g. incoming/readme.txt); files whose name has no '.' extension. Each remaining file is its own package (one package
+  per file), so a problem with one file does not stop the others. The study ID is the first folder after incoming/, used exactly
+  as written.\n"
+examples:
+  - name: normal_files_one_package_each
+    event:
+    listing:
+      - incoming/d0000c00004/root/cdar/ar/csr/adam/a.sas7bdat:10
+      - incoming/ABCD-0000-0000/x.pdf:10
+    contents: {}
+    params: {}
+    expected_packages:
+      -   - d0000c00004/root/cdar/ar/csr/adam/a.sas7bdat
+      -   - ABCD-0000-0000/x.pdf
+    expect_error: false
+  - name: skips
+    event:
+    listing:
+      - incoming/:0
+      - incoming/S1/:0
+      - incoming/readme.txt:10
+      - incoming/S1/data/no_extension:10
+      - incoming/S1/data/a.csv:10
+    contents: {}
+    params: {}
+    expected_packages:
+      -   - S1/data/a.csv
+    expect_error: false
+  - name: deep_nesting
+    event:
+    listing:
+      - incoming/04-3077/a/b/c/d/e/f.sas7bdat:10
+    contents: {}
+    params: {}
+    expected_packages:
+      -   - 04-3077/a/b/c/d/e/f.sas7bdat
+    expect_error: false

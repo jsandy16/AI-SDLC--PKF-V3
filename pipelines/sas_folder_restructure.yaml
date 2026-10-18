@@ -112,3 +112,7 @@ examples:
       - error/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
       - error/04-3077/root/cdar/d168/04-3077/adam/prod/data/adae.sas7bdat
     expect_error: false
+connection: sas_folder_restructure_connection
+trigger: every_45_minutes
+transformation:
+package_name: '{source}_{ds_nodash}'
