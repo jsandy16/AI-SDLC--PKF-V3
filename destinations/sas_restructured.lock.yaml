@@ -388,10 +388,10 @@ code:
       schema_sha256: afe1d56d5b1920604e4d87a8531b1f4cfece87931964407d56ebdb1fae7aa4bc
       model: claude-sonnet-5-5
       prompt_version: '1'
-      explanation: "Implements pseudocode steps 1-5: builds D from folders only, computes fmt/anon_fmt, evaluates all seven
-        rules (a rule matching but underivable counts as matched with no key), then sets the key if exactly one rule matched
-        with a key, else error/path. Records 'reason:'+path in vars. Already-placed keys are left untouched. Hand-traced all
-        8 test cases and 5 examples; all match expected keys."
+      explanation: "Implements the pseudocode: per unplaced file, computes D from folders only, evaluates all 7 rules, and
+        counts a rule as matched even if its key is ERR. Exactly one match with a key sets that key; otherwise error/path.
+        Reasons are stored in vars under 'reason:'+path. Hand-traced all 8 test cases and the 5 examples (including anon_other
+        and no_rule_to_error); all match. The pre-placed key is left untouched."
       attempts:
         - attempt: 1
           passed: true
@@ -399,40 +399,23 @@ code:
       task: write_custom_step
       skill: writing-custom-step-code
       skill_sha256: a25c6e64d500004dd112f9882097e73383aad328cdfcb55e3ee5af6ed8d54725
-      prompt_sha256: 5033c83e4e1b792201833809c1755b3f8c4bcd1c0569d04a30d5d63868b0a038
+      prompt_sha256: 8c7f74468abca6dd890a63462336b50d657db32181c53719753706839e7117c5
       schema_sha256: afe1d56d5b1920604e4d87a8531b1f4cfece87931964407d56ebdb1fae7aa4bc
       model: claude-sonnet-5-5
       prompt_version: '1'
-      explanation: "I resubmitted the same logic as attempt 3, with no changes. I did not run it, and I could not confirm
-        the cause of the load failure.\n\nThe reported error is a load-time crash inside the test harness: moto imports asyncio
-        on Windows and hits `TypeError: function() argument 'code' must be code, not str`. My function has no imports and
-        no module-level code, so I think the failure is in the harness environment and not in this code. That is a judgement
-        from the traceback. It needs a rerun to confirm.\n\nHow it follows the pseudocode, for each transfer independently:\n\
-        - **Error check:** `is_error` is true when the target key equals `error/` plus the path.\n- **Copy arguments:** `CopySourceIfMatch`
-        is set when an etag is given. `ServerSideEncryption` and `SSEKMSKeyId` are set from `ctx['delivery']` when present.\n\
-        - **Copy:** a server-side `copy` with `SourceClient=aws.s3_source`. If it raises, the result is `failed` and the source
-        is untouched.\n- **Check:** `head_object` on the target must succeed and its `ContentLength` must equal `size`. Otherwise
-        the result is `failed` and the source is kept.\n- **Delete:** the source is deleted only after the check passes. If
-        the delete fails, the result is `failed` and the source stays.\n- **Tagging:** non-error files get exactly one tag,
-        `ADDITIONAL_TAG` set to the path. This replaces all existing tags. A tagging failure is only a warning, and the file
-        still counts as moved. Error files get no tag change.\n- **Result and log:** status is `moved` or `moved_to_error`,
-        and one result dict is returned per transfer. One `aws.log.info` line is logged per file.\n\nTracing the six approved
-        cases by hand, each gives the expected objects, tags and statuses:\n- `normal_move_and_tag`\n- `error_file_moved_no_tag`\n\
-        - `copy_fails_source_kept`\n- `tagging_fails_still_moved`\n- `existing_target_overwritten_tags_replaced`\n- `delete_fails_independent_files`\n\
-        \nThe `detail` field reads the rule number or reason from `params['reason:'+path]`. That key may not be in `params`,
-        in which case `detail` is an empty string."
+      explanation: Implements the pseudocode per transfer, each in its own try blocks so one failure never stops the 
+        others. It copies server-side with CopySourceIfMatch and SSE args, HEADs the target and compares size, then 
+        deletes the source, then tags (a tagging failure only logs a warning). Error-key files (target_key == 
+        'error/'+path) get status moved_to_error and no tagging. Copy, check and delete failures return 'failed' and 
+        leave the source in place, as in the pseudocode. I traced the six test cases by hand and expect all to pass. I 
+        did not run them. The detail field takes params['reason:'+path] if present, else ''. This is a guess, because 
+        the transfer dict carries no reason.
       attempts:
         - attempt: 1
-          passed: false
-        - attempt: 2
-          passed: false
-        - attempt: 3
-          passed: false
-        - attempt: 4
-          passed: false
-  generated_at: '2026-10-18T06:34:18+00:00'
+          passed: true
+  generated_at: '2026-10-18T07:46:51+00:00'
   code_policy: open
-  sha256: 80117e12912ad5bfeee06545755b883e8e11dbe95cd4931717de381586a22d28
+  sha256: 88ef180d82c436497a2de0fbb4e3066b95b313c054e38f02ea0df1ffda4235b0
   problems: []
   tests:
     - example: cdar_csr
@@ -506,4 +489,4 @@ code:
       step: move_and_tag
       status: pass
       detail: matches the expected output
-  tested_at: '2026-10-18T07:36:29+00:00'
+  tested_at: '2026-10-18T07:46:54+00:00'

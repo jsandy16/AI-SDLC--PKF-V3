@@ -13,14 +13,14 @@ from __future__ import annotations
 
 
 def compute_target_keys(layout, params, ctx):
-    keys = layout.setdefault("keys", {})
-    vs = layout.setdefault("vars", {})
-    for path in layout.get("files", []):
+    keys = layout["keys"]
+    vars_ = layout.setdefault("vars", {})
+    for path in layout["files"]:
         if keys.get(path) is not None:
             continue
         parts = path.split("/")
         study = parts[0]
-        fname = parts[-1]
+        file = parts[-1]
         folders = parts[1:-1]
         last = folders[-1] if folders else None
         D = "/" + "/".join(folders) + "/"
@@ -44,95 +44,81 @@ def compute_target_keys(layout, params, ctx):
             afmt = None
 
         ERR = None
-        results = []  # (rule, key or None, reason)
+        matched = []  # (rule, key, errreason)
 
-        def j(*xs):
-            return "/".join(xs)
-
-        # 1 CDAP
         if "/data_reuse/" in D and "/cdap_" in D and fmt:
-            key = None
-            why = ""
             if "/cdap_csr" in D:
-                key = j(study, "extended_primary_use", "primary", fmt, fname)
-            elif last is not None and "_ia" in last:
+                matched.append((1, "/".join([study, "extended_primary_use", "primary", fmt, file]), ""))
+            elif "_ia" in last:
                 p = last.split("_")
                 if len(p) < 3:
-                    why = "last folder has fewer than 3 parts"
+                    matched.append((1, ERR, "cdap interim folder has fewer than 3 parts"))
                 else:
                     x = p[2]
                     if x.startswith("ia"):
-                        key = j(study, "extended_primary_use", "interim", fmt, "ia_" + x[2:], fname)
+                        ia = "ia_" + x[2:]
+                        matched.append((1, "/".join([study, "extended_primary_use", "interim", fmt, ia, file]), ""))
                     else:
-                        why = "third part does not start with ia"
+                        matched.append((1, ERR, "cdap third part does not start with ia"))
             else:
-                p = (last or "").split("_")
+                p = last.split("_")
                 if len(p) < 2:
-                    why = "last folder has fewer than 2 parts"
+                    matched.append((1, ERR, "cdap folder has fewer than 2 parts"))
                 else:
-                    key = j(study, "extended_primary_use", "other", fmt, p[1], fname)
-            results.append((1, key, why))
-        # 2 IDAP
+                    matched.append((1, "/".join([study, "extended_primary_use", "other", fmt, p[1], file]), ""))
         if "/data_reuse/" in D and "/idap" in D and fmt:
-            results.append((2, j(study, "internal_reuse", fmt, last, fname), ""))
-        # 3 MED
+            matched.append((2, "/".join([study, "internal_reuse", fmt, last, file]), ""))
         if "/data_reuse/" in D and "/med" in D and fmt:
-            results.append((3, j(study, "external_reuse", fmt, last, fname), ""))
-        # 4 ANON
+            matched.append((3, "/".join([study, "external_reuse", fmt, last, file]), ""))
         if "_anon_" in D and afmt:
             if "_anon_csr" in D:
-                key = j(study, "anonymised", "primary", afmt, fname)
+                matched.append((4, "/".join([study, "anonymised", "primary", afmt, file]), ""))
             else:
-                t = (last or "").split("_")[-1]
+                t = last.split("_")[-1]
                 if t.startswith("ia"):
-                    key = j(study, "anonymised", "interim", afmt, "ia_" + t[2:], fname)
+                    ia = "ia_" + t[2:]
+                    matched.append((4, "/".join([study, "anonymised", "interim", afmt, ia, file]), ""))
                 else:
-                    key = j(study, "anonymised", "other", afmt, t, fname)
-            results.append((4, key, ""))
-        # 5 CDAR
+                    matched.append((4, "/".join([study, "anonymised", "other", afmt, t, file]), ""))
         if "/cdar/" in D and fmt:
-            key = None
-            why = ""
             idx = None
             for i, f in enumerate(folders):
                 if f.lower() == "ar":
                     idx = i
                     break
             if idx is None:
-                why = "no ar folder"
+                matched.append((5, ERR, "no ar folder"))
             elif idx + 1 >= len(folders):
-                why = "no reporting level after ar folder"
+                matched.append((5, ERR, "no reporting level folder after ar"))
             else:
                 level = folders[idx + 1].lower()
                 if level in ("adam", "sdtm", "raw"):
-                    why = "reporting level is a data format"
+                    matched.append((5, ERR, "reporting level is a data format"))
                 elif level == "csr":
-                    key = j(study, "primary", "complete", fmt, fname)
+                    matched.append((5, "/".join([study, "primary", "complete", fmt, file]), ""))
                 elif level.startswith("ia"):
                     x = level[2:].lstrip("_")
-                    key = j(study, "primary", "interim", fmt, "ia_" + x, fname)
+                    matched.append((5, "/".join([study, "primary", "interim", fmt, "ia_" + x, file]), ""))
                 else:
-                    key = j(study, "primary", "other", fmt, level, fname)
-            results.append((5, key, why))
-        # 6 OTHERS
-        if "/data_reuse/" in D and fmt and not any(
-                s in D for s in ("/med", "/cdap", "/idap", "/anon", "_anon_")):
-            results.append((6, j(study, "other", fmt, last, fname), ""))
-        # 7 DEFAULT
+                    matched.append((5, "/".join([study, "primary", "other", fmt, level, file]), ""))
+        if ("/data_reuse/" in D and fmt
+                and not any(s in D for s in ("/med", "/cdap", "/idap", "/anon", "_anon_"))):
+            matched.append((6, "/".join([study, "other", fmt, last, file]), ""))
         if not any(s in D for s in ("/data_reuse/", "_anon_", "/cdar/")):
-            results.append((7, path, ""))
+            matched.append((7, path, ""))
 
-        if len(results) == 1 and results[0][1] is not None:
-            keys[path] = results[0][1]
-            vs["reason:" + path] = "rule " + str(results[0][0])
+        if len(matched) == 1 and matched[0][1] is not None:
+            keys[path] = matched[0][1]
+            vars_["reason:" + path] = "rule " + str(matched[0][0])
+        elif len(matched) == 0:
+            keys[path] = error_key
+            vars_["reason:" + path] = "no rule"
+        elif len(matched) > 1:
+            keys[path] = error_key
+            vars_["reason:" + path] = "multiple rules: " + ", ".join(str(m[0]) for m in matched)
         else:
             keys[path] = error_key
-            if not results:
-                vs["reason:" + path] = "no rule"
-            elif len(results) > 1:
-                vs["reason:" + path] = "multiple rules: " + ", ".join(str(r[0]) for r in results)
-            else:
-                vs["reason:" + path] = "cannot derive: " + results[0][2]
+            vars_["reason:" + path] = "cannot derive: " + matched[0][2]
     return layout
 
 
@@ -143,10 +129,19 @@ def move_and_tag(transfers, params, ctx, aws):
     kms = delivery.get("kms_key_id")
     for t in transfers:
         path = t["path"]
-        tkey = t["target_key"]
-        skey = t["source_key"]
-        is_error = (tkey == "error/" + path)
-        reason = str((params or {}).get("reason:" + path, "") or "")
+        sb, sk = t["source_bucket"], t["source_key"]
+        tb, tk = t["target_bucket"], t["target_key"]
+        is_error = (tk == "error/" + path)
+        reason = ""
+        try:
+            reason = str((params or {}).get("reason:" + path, "") or "")
+        except Exception:
+            reason = ""
+
+        def fail(detail):
+            aws.log.info("%s -> %s: failed: %s", sk, tk, detail)
+            results.append({"path": path, "key": tk, "status": "failed", "detail": str(detail)})
+
         extra = {}
         if t.get("etag"):
             extra["CopySourceIfMatch"] = t["etag"]
@@ -154,43 +149,35 @@ def move_and_tag(transfers, params, ctx, aws):
             extra["ServerSideEncryption"] = sse
             if kms:
                 extra["SSEKMSKeyId"] = kms
-        status = None
-        detail = ""
         try:
-            aws.s3_destination.copy(
-                {"Bucket": t["source_bucket"], "Key": skey},
-                t["target_bucket"], tkey,
-                ExtraArgs=extra, SourceClient=aws.s3_source)
+            aws.s3_destination.copy({"Bucket": sb, "Key": sk}, tb, tk,
+                                    ExtraArgs=extra, SourceClient=aws.s3_source)
         except Exception as e:
-            status = "failed"
-            detail = "copy failed: %s" % e
-        if status is None:
+            fail("copy failed: %s" % e)
+            continue
+        try:
+            head = aws.s3_destination.head_object(Bucket=tb, Key=tk)
+            if head.get("ContentLength") != t["size"]:
+                fail("target size mismatch after copy")
+                continue
+        except Exception as e:
+            fail("target check failed: %s" % e)
+            continue
+        try:
+            aws.s3_source.delete_object(Bucket=sb, Key=sk)
+        except Exception as e:
+            fail("delete of source failed: %s" % e)
+            continue
+        if not is_error:
             try:
-                head = aws.s3_destination.head_object(Bucket=t["target_bucket"], Key=tkey)
-                if head.get("ContentLength") != t["size"]:
-                    status = "failed"
-                    detail = "target size differs from source size"
+                aws.s3_destination.put_object_tagging(
+                    Bucket=tb, Key=tk,
+                    Tagging={"TagSet": [{"Key": "ADDITIONAL_TAG", "Value": path}]})
             except Exception as e:
-                status = "failed"
-                detail = "target check failed: %s" % e
-        if status is None:
-            try:
-                aws.s3_source.delete_object(Bucket=t["source_bucket"], Key=skey)
-            except Exception as e:
-                status = "failed"
-                detail = "source delete failed: %s" % e
-        if status is None:
-            if not is_error:
-                try:
-                    aws.s3_destination.put_object_tagging(
-                        Bucket=t["target_bucket"], Key=tkey,
-                        Tagging={"TagSet": [{"Key": "ADDITIONAL_TAG", "Value": path}]})
-                except Exception as e:
-                    aws.log.warning("tagging failed for %s: %s", tkey, e)
-            status = "moved_to_error" if is_error else "moved"
-            detail = reason
-        aws.log.info("%s -> %s: %s %s", skey, tkey, status, detail)
-        results.append({"path": path, "key": tkey, "status": status, "detail": detail})
+                aws.log.warning("tagging failed for %s: %s", tk, e)
+        status = "moved_to_error" if is_error else "moved"
+        aws.log.info("%s -> %s: %s", sk, tk, reason or status)
+        results.append({"path": path, "key": tk, "status": status, "detail": reason})
     return results
 
 
