@@ -1,4 +1,31 @@
 {
+  "version": 2,
+  "build_mode": "draft",
+  "build_ok": true,
+  "build_issues": [
+    {
+      "severity": "warning",
+      "file": "triggers/every_45_minutes.yaml",
+      "loc": "",
+      "msg": "trigger parameter(s) retries, retry_delay_seconds not used by the DAG: set retries / retry_delay_minutes in pipelines/sas_folder_restructure.yaml (Pipeline tab \u2192 Pipeline settings)",
+      "code": "inert_trigger_param"
+    },
+    {
+      "severity": "warning",
+      "file": "triggers/every_45_minutes.yaml",
+      "loc": "",
+      "msg": "schedule '*/45 * * * *' runs at minutes divisible by 45 (not every 45 minutes): the gap at the top of the hour is shorter",
+      "code": "uneven_cron"
+    },
+    {
+      "severity": "warning",
+      "file": "pkf.toml",
+      "loc": "",
+      "msg": "staging is a local folder (file:///tmp/pkf-staging): every Airflow worker must reach the same staging, so set PKF_STAGING_URL=s3://<bucket>/<prefix> on the workers (with a lifecycle rule) unless Airflow runs on one machine",
+      "code": "file_staging"
+    }
+  ],
+  "examples_ok": true,
   "examples": [
     {
       "example": "cdar_routes",
@@ -52,14 +79,44 @@
       ]
     }
   ],
-  "build_ok": false,
-  "build_issues": [
+  "components": [
     {
-      "severity": "error",
-      "file": "pipelines/sas_folder_restructure.yaml",
-      "loc": "",
-      "msg": "destination 'sas_restructured' is not ready (code_generated): review destinations/sas_restructured.py, then a person runs `pkf approve-code destination sas_restructured --by @handle`",
-      "code": "component_not_approved"
+      "kind": "trigger",
+      "name": "every_45_minutes",
+      "stage": "approved",
+      "mode": "config",
+      "next": "ready (no AI design needed)",
+      "custom_steps": [],
+      "code_file": null,
+      "failing": [],
+      "ai_issues": []
+    },
+    {
+      "kind": "source",
+      "name": "sas_incoming",
+      "stage": "approved",
+      "mode": "requirement",
+      "next": "ready: no custom code to review",
+      "custom_steps": [],
+      "code_file": null,
+      "failing": [],
+      "ai_issues": []
+    },
+    {
+      "kind": "destination",
+      "name": "sas_restructured",
+      "stage": "code_generated",
+      "mode": "requirement",
+      "next": "review destinations/sas_restructured.py, then a person runs `pkf approve-code destination sas_restructured --by @handle`",
+      "custom_steps": [
+        "compute_target_keys",
+        "move_and_tag"
+      ],
+      "code_file": "destinations/sas_restructured.py",
+      "failing": [],
+      "ai_issues": []
     }
-  ]
+  ],
+  "dags_differ": false,
+  "problems": []
 }
