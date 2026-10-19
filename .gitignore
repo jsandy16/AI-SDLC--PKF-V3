@@ -13,3 +13,6 @@ __pycache__/
 .venv/
 */.llm/
 local-secrets/
+
+# pkf Studio (local state)
+.pkf-studio/flows/
