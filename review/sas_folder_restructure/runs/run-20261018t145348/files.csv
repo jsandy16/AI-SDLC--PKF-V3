@@ -1,7 +1,0 @@
-package,index,path,source_key,target_key,status,detail,note,size
-sas_incoming_20261018,0,d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat,incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat,d0000c00004/primary/other/raw/bdr200/c.sas7bdat,moved,rule 5,rule 5,4
-sas_incoming_20261018,1,d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat,incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat,d0000c00004/primary/complete/adam/a.sas7bdat,moved,rule 5,rule 5,4
-sas_incoming_20261018,2,d0000c00004/root/cdar/d000/d0000c00004/ar/ia100/sdtm/dev/data/data_area/b.sas7bdat,incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/ia100/sdtm/dev/data/data_area/b.sas7bdat,d0000c00004/primary/interim/sdtm/ia_100/b.sas7bdat,moved,rule 5,rule 5,4
-sas_incoming_20261018,3,s1/data_reuse/idap_x/adam/v1/d.sas7bdat,incoming/s1/data_reuse/idap_x/adam/v1/d.sas7bdat,s1/internal_reuse/adam/v1/d.sas7bdat,moved,rule 2,rule 2,4
-sas_incoming_20261018,4,s1/root/cdar/x/adam/f.sas7bdat,incoming/s1/root/cdar/x/adam/f.sas7bdat,error/s1/root/cdar/x/adam/f.sas7bdat,moved_to_error,cannot derive: no ar folder,cannot derive: no ar folder,4
-sas_incoming_20261018,5,s1/some/plain/path/e.sas7bdat,incoming/s1/some/plain/path/e.sas7bdat,s1/some/plain/path/e.sas7bdat,moved,rule 7,rule 7,4

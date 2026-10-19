@@ -1,5 +1,0 @@
-api_version: pkf/v1
-kind: connection
-name: sas_folder_restructure_connection
-source: sas_incoming
-destination: sas_restructured
