@@ -1,0 +1,169 @@
+{
+  "components": {
+    "destination": {
+      "module": "components/destination.py",
+      "name": "sas_restructured",
+      "sha256": "660f1b9f024fd26be9811e0b4bd4d6afd822906c75cca8af205cc9c3b820d8da",
+      "steps": [
+        "compute_sas_keys",
+        "deliver_move_with_tag"
+      ],
+      "titles": [
+        "Decide target key per file from folder path (7 rules, exactly one must match, else error/)",
+        "Move each file in the bucket (server-side copy, check, delete source), tag target, report"
+      ]
+    },
+    "source": {
+      "module": "components/source.py",
+      "name": "sas_incoming",
+      "sha256": "35e0ae1c92cd4fb2712200249ca0af719cde02c674d124c1cf5ab068a30336cb",
+      "steps": [
+        "list_incoming",
+        "keep_study_files_with_extension",
+        "split_per_file"
+      ],
+      "titles": [
+        "List all objects under incoming/",
+        "Skip folder markers, files outside a study folder, and files with no extension",
+        "One package per file, key = relative path"
+      ]
+    },
+    "trigger": {
+      "module": "components/trigger.py",
+      "name": "sas_schedule_trigger",
+      "sha256": "c560b4c24c00424dd646a1e14f1a34a70fbc0b753e8c882f39518da2d2e738c9",
+      "steps": [
+        "tick"
+      ],
+      "titles": [
+        "One run per scheduled tick"
+      ]
+    }
+  },
+  "connection": {
+    "api_version": "pkf/v1",
+    "check_before_run": true,
+    "description": "",
+    "destination": "sas_restructured",
+    "kind": "connection",
+    "name": "sas_folder_restructure_wf_connection",
+    "source": "sas_incoming"
+  },
+  "destination": {
+    "api_version": "pkf/v1",
+    "connection": {
+      "bucket": "dev-dpl-dstore-sas-eu-north-1-992382551516",
+      "endpoint_url": null,
+      "region": "eu-north-1"
+    },
+    "credentials": {
+      "fields": {},
+      "provider": "none",
+      "ref": null,
+      "region": null,
+      "vault_address": null,
+      "vault_mount": "secret"
+    },
+    "delivery": {
+      "if_exists": "overwrite",
+      "kms_key_id": null,
+      "prefix": "{source}/{ds}/{package}/",
+      "server_side_encryption": null,
+      "write_success_marker": false
+    },
+    "description": "from the destination part of the pipeline requirement",
+    "kind": "destination",
+    "name": "sas_restructured",
+    "params": {},
+    "type": "s3"
+  },
+  "framework_version": "0.6.0",
+  "lock_sha256": "96b7b5177d0aaff0023a7072d02695616300b8991ac1360cc1f454e73a4888dc",
+  "lock_version": 2,
+  "pipeline": {
+    "api_version": "pkf/v1",
+    "connection": "sas_folder_restructure_wf_connection",
+    "description": "Every 45 minutes, move SAS study files from incoming/ to the standard study folder layout in the same S3 bucket by folder-path rules, sending unroutable files to error/.",
+    "kind": "pipeline",
+    "max_active_runs": 1,
+    "name": "sas_folder_restructure_wf",
+    "owner": "data-eng",
+    "package_name": "{package_key}",
+    "params": {},
+    "retries": 2,
+    "retry_delay_minutes": 2,
+    "schedule": null,
+    "start_date": "2026-10-01",
+    "tags": [
+      "sas",
+      "folder-restructure"
+    ],
+    "task_split": "per_step",
+    "transformation": null,
+    "trigger": "sas_schedule_trigger"
+  },
+  "runtime_version": "0.6.0",
+  "source": {
+    "api_version": "pkf/v1",
+    "connection": {
+      "bucket": "dev-dpl-dstore-sas-eu-north-1-992382551516",
+      "endpoint_url": null,
+      "region": "eu-north-1"
+    },
+    "credentials": {
+      "fields": {},
+      "provider": "none",
+      "ref": null,
+      "region": null,
+      "vault_address": null,
+      "vault_mount": "secret"
+    },
+    "description": "from the source part of the pipeline requirement",
+    "extraction": {
+      "exclude": [],
+      "include": [
+        "**"
+      ],
+      "max_depth": 20,
+      "max_files": null,
+      "max_total_bytes": null,
+      "min_age_seconds": 0,
+      "min_files": 1,
+      "recursive": true,
+      "regex": null,
+      "root": "/"
+    },
+    "kind": "source",
+    "name": "sas_incoming",
+    "params": {},
+    "type": "s3"
+  },
+  "staging_url": "file:///tmp/pkf-staging",
+  "transformation": null,
+  "trigger": {
+    "api_version": "pkf/v1",
+    "connection": {
+      "endpoint_url": null,
+      "region": "eu-north-1"
+    },
+    "credentials": {
+      "fields": {},
+      "provider": "none",
+      "ref": null,
+      "region": null,
+      "vault_address": null,
+      "vault_mount": "secret"
+    },
+    "description": "from the trigger part of the pipeline requirement",
+    "kind": "trigger",
+    "name": "sas_schedule_trigger",
+    "params": {
+      "retries": "2",
+      "retry_delay_seconds": "120"
+    },
+    "receive": {
+      "op": "schedule"
+    },
+    "schedule": "*/45 * * * *"
+  }
+}
