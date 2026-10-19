@@ -1,0 +1,25 @@
+{
+  "pipeline": "sas_folder_restructure_wf",
+  "source_file": "pipeline_requirements.txt",
+  "assumptions": [
+    "Format and rule checks run on the folder path with a trailing '/', so a folder named adam/sdtm/raw as the last folder still matches /adam/, /sdtm/ or raw/.",
+    "Pattern checks such as /med, /cdap, /idap, /anon are plain substring matches on the folder path, case-sensitive unless stated.",
+    "For anonymised folders the underscore format is searched in the folder path (any folder), not only the last folder.",
+    "Skipped files (markers, files with no study folder, no extension) are neither moved nor listed in the report.",
+    "Study ID is the first folder under incoming/; the study itself is not validated.",
+    "The data_reuse + cdar example is an error because both CDAR and OTHERS match (two rules).",
+    "The cron */45 fires at minutes 0 and 45 of each hour, so the gap is 45 then 15 minutes; this is taken as intended.",
+    "The bucket name is set per environment; the region eu-north-1 comes from the document."
+  ],
+  "open_questions": [],
+  "requirement_sha256": "f8aed93eff8d0b1bb92a498c98beada17708c3e91a199398d229bbb100de50ee",
+  "analyzed_by": {
+    "task": "analyze_requirements",
+    "skill": "finalizing-pipeline-requirements",
+    "skill_sha256": "82e673c92eefcdae59942ddefb6885846afe58ed3f2e6557a714a317c850c9d9",
+    "prompt_sha256": "12b212e4efe825a564eab84dcc66dbc31313c96311c81fc0670b9421f1af8ed1",
+    "schema_sha256": "f86b7e05f51f9699e269809029e3fdb816ab038c1a8a284692148d723528e8b2",
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1"
+  }
+}
