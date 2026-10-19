@@ -1,0 +1,13 @@
+{
+  "ok": false,
+  "issues": [
+    {
+      "msg": "no valid AWS credentials (ExpiredToken): run aws sso login --profile my-custom-profile (or source ~/pkf/env.sh), then try again",
+      "code": "no_credentials",
+      "severity": "error"
+    }
+  ],
+  "dry_run": null,
+  "caller_arn": null,
+  "source_versioning": null
+}
