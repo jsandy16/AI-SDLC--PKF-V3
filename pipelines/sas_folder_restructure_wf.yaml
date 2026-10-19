@@ -115,3 +115,7 @@ retry_delay_minutes: 2
 tags:
   - sas
   - folder-restructure
+connection: sas_folder_restructure_wf_connection
+trigger: sas_schedule_trigger
+transformation:
+package_name: '{package_key}'
