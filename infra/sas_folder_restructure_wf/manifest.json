@@ -1,7 +1,7 @@
 {
   "buckets": [],
   "facts": {
-    "account_id": null,
+    "account_id": "992382551516",
     "destination": {
       "bucket": "dev-dpl-dstore-sas-eu-north-1-992382551516",
       "custom_delivery": true,
