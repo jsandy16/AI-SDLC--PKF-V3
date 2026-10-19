@@ -10,7 +10,7 @@ connection:
 credentials:
   provider: none
 delivery:
-  if_exists: skip_identical
+  if_exists: overwrite
   server_side_encryption:
   write_success_marker: false
 params: {}
