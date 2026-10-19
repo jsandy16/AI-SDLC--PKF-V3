@@ -5,7 +5,7 @@ name: sas_restructured
 description: from the destination part of the pipeline requirement
 type: s3
 connection:
-  bucket: <REQUIRED>
+  bucket: dev-dpl-dstore-sas-eu-north-1-992382551516
   region: eu-north-1
 credentials:
   provider: none
