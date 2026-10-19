@@ -547,4 +547,4 @@ code:
       step: deliver_move_with_tag
       status: pass
       detail: matches the expected output
-  tested_at: '2026-10-19T06:44:10+00:00'
+  tested_at: '2026-10-19T06:44:28+00:00'
