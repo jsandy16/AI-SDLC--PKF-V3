@@ -1,14 +1,28 @@
 {
   "version": 2,
   "build_mode": "draft",
-  "build_ok": false,
+  "build_ok": true,
   "build_issues": [
     {
-      "severity": "error",
-      "file": "pipelines/sas_folder_restructure_wf.yaml",
+      "severity": "warning",
+      "file": "triggers/sas_schedule_trigger.yaml",
       "loc": "",
-      "msg": "destination 'sas_restructured' is not ready for a draft build (code_failing): fix destinations/sas_restructured.py (or re-plan) and run pkf test destination sas_restructured \u2014 if a test case itself is wrong, Reopen G3 and re-plan destination sas_restructured",
-      "code": "component_not_ready"
+      "msg": "trigger parameter(s) retries, retry_delay_seconds not used by the DAG: set retries / retry_delay_minutes in pipelines/sas_folder_restructure_wf.yaml (Pipeline tab \u2192 Pipeline settings)",
+      "code": "inert_trigger_param"
+    },
+    {
+      "severity": "warning",
+      "file": "triggers/sas_schedule_trigger.yaml",
+      "loc": "",
+      "msg": "schedule '*/45 * * * *' runs at minutes divisible by 45 (not every 45 minutes): the gap at the top of the hour is shorter",
+      "code": "uneven_cron"
+    },
+    {
+      "severity": "warning",
+      "file": "pkf.toml",
+      "loc": "",
+      "msg": "staging is a local folder (file:///tmp/pkf-staging): every Airflow worker must reach the same staging, so set PKF_STAGING_URL=s3://<bucket>/<prefix> on the workers (with a lifecycle rule) unless Airflow runs on one machine",
+      "code": "file_staging"
     }
   ],
   "examples_ok": true,
@@ -91,29 +105,18 @@
     {
       "kind": "destination",
       "name": "sas_restructured",
-      "stage": "code_failing",
+      "stage": "code_generated",
       "mode": "requirement",
-      "next": "fix destinations/sas_restructured.py (or re-plan) and run pkf test destination sas_restructured \u2014 if a test case itself is wrong, Reopen G3 and re-plan destination sas_restructured",
+      "next": "review destinations/sas_restructured.py, then a person runs `pkf approve-code destination sas_restructured --by @handle`",
       "custom_steps": [
         "compute_sas_keys",
         "deliver_move_with_tag"
       ],
       "code_file": "destinations/sas_restructured.py",
-      "failing": [
-        {
-          "step": "deliver_move_with_tag",
-          "case": "existing_target_overwritten",
-          "example": null,
-          "detail": "objects after delivery: missing [], unexpected ['pkgbucket/incoming/s1/a.txt']"
-        }
-      ],
-      "ai_issues": [
-        "pkf code destination sas_restructured: existing_target_overwritten: objects after delivery: missing [], unexpected ['pkgbucket/incoming/s1/a.txt'] \u2014 the generated code fails its tests: see the S4 status panel (Workflow)"
-      ]
+      "failing": [],
+      "ai_issues": []
     }
   ],
   "dags_differ": false,
-  "problems": [
-    "pkf code destination sas_restructured: existing_target_overwritten: objects after delivery: missing [], unexpected ['pkgbucket/incoming/s1/a.txt'] \u2014 the generated code fails its tests: see the S4 status panel (Workflow)"
-  ]
+  "problems": []
 }
