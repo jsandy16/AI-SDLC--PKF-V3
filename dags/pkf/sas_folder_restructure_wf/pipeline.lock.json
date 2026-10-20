@@ -77,8 +77,8 @@
     "params": {},
     "type": "s3"
   },
-  "framework_version": "0.6.1",
-  "lock_sha256": "819bc00680e9902a9f2689b60d4a7dc2788bdf45d58c82b82de7dbe325acc292",
+  "framework_version": "0.8.0",
+  "lock_sha256": "097c35407a344b08675d9256d69c7bd054d9a6d26dac9f26ca4c19884d26ab06",
   "lock_version": 2,
   "pipeline": {
     "api_version": "pkf/v1",
@@ -102,7 +102,7 @@
     "transformation": null,
     "trigger": "sas_schedule_trigger"
   },
-  "runtime_version": "0.6.1",
+  "runtime_version": "0.8.0",
   "source": {
     "api_version": "pkf/v1",
     "connection": {
