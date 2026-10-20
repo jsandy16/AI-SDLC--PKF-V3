@@ -1,4 +1,7 @@
 {
-  "validate": "not checked: ClientError: An error occurred (ExpiredTokenException) when calling the ValidatePolicy operation: The security token included in the request is expired",
-  "simulate": "not checked: ClientError: An error occurred (ExpiredToken) when calling the SimulateCustomPolicy operation: The security token included in the request is expired"
+  "validate": [],
+  "simulate": {
+    "checked": 9,
+    "denied": []
+  }
 }
