@@ -1,0 +1,23 @@
+{
+  "pipeline": "entimice_api_pipeline",
+  "source_file": "pipeline_requirements.txt",
+  "assumptions": [
+    "Source and destination use the same bucket, so the destination keys are relative to the bucket root (no run-date prefix).",
+    "Delivery is a custom delivery step (server-side copy, existence check, delete, tagging), since a plain upload cannot do a move.",
+    "Where a file matches two rules (e.g. /data_reuse/ plus /cdar/ with a data format, matching CDAR and OTHERS), it is an error and goes to error/.",
+    "Skipped files (no extension, no study folder, folder markers) stay in incoming/ untouched.",
+    "Data format priority is adam, then sdtm, then raw, as the document states.",
+    "The pipeline name entimice_api_pipeline is used instead of the document's name sas_folder_restructure."
+  ],
+  "open_questions": [],
+  "requirement_sha256": "8ba851842fff5bae91b3289d940627f9da0bcf70851deb7b18d525361628ccee",
+  "analyzed_by": {
+    "task": "analyze_requirements",
+    "skill": "finalizing-pipeline-requirements",
+    "skill_sha256": "82e673c92eefcdae59942ddefb6885846afe58ed3f2e6557a714a317c850c9d9",
+    "prompt_sha256": "e483add54cf012a2b8b558832b5116c81c1c1691d1173608c5ad96d5fb45e52e",
+    "schema_sha256": "f86b7e05f51f9699e269809029e3fdb816ab038c1a8a284692148d723528e8b2",
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1"
+  }
+}

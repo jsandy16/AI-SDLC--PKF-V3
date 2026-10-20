@@ -1,0 +1,224 @@
+# pipelines/entimice_api_pipeline.lock.yaml — the AI's split of the pipeline requirement and its approval.
+# Written by `pkf plan pipeline` / `pkf approve-plan pipeline`. Do not edit by hand.
+lock_version: 1
+pipeline: entimice_api_pipeline
+requirement_sha256: 577bda829d00898f6cb0c4f66038c7c270721f9367d014dbc533a559624e8334
+split:
+  summary: A cron schedule (every 45 minutes, 2 retries with a 2-minute delay) starts a run with no events. The source 
+    lists every object under incoming/ in the SAS bucket. It skips folder markers, files directly under incoming/ and 
+    files with no extension. Each remaining file becomes its own package, with paths relative to incoming/. There is no 
+    transformation. The destination applies the seven routing rules to the folder path and sends unmatched files to 
+    error/. It does this in a custom delivery step that copies server-side, verifies the copy, deletes the source, tags 
+    the target and reports one line per file.
+  components:
+    trigger:
+      name: sas_schedule_trigger
+      reuse: true
+    source:
+      name: sas_incoming
+      reuse: false
+      spec:
+        api_version: pkf/v1
+        kind: source
+        name: sas_incoming
+        description: from the source part of the pipeline requirement
+        type: s3
+        connection:
+          bucket: <REQUIRED>
+          region: eu-north-1
+        credentials:
+          provider: none
+        params: {}
+        requirement: "Read from an S3 bucket in region eu-north-1 (bucket name is set per environment). List every object
+          under the prefix incoming/ at any depth; paths inside each package are relative to incoming/ (so the first folder
+          is the study ID, used exactly as written). Skip silently: folder markers (keys ending in \"/\"), files directly
+          under incoming/ with no study folder (e.g. incoming/readme.txt), and files whose name has no \".\" extension. Each
+          remaining file is its own package (one package per file), so a problem with one file does not stop the others. Do
+          not fail when no files are found.\n"
+        examples:
+          - name: normal_files
+            event:
+            listing:
+              - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat:10
+              - incoming/ABCD-0000-0000/report.pdf:10
+            contents: {}
+            params: {}
+            expected_packages:
+              -   - d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat
+              -   - ABCD-0000-0000/report.pdf
+            expect_error: false
+          - name: skips
+            event:
+            listing:
+              - incoming/readme.txt:10
+              - incoming/S1/folder/:0
+              - incoming/S1/folder/no_extension:10
+              - incoming/S1/ok.csv:5
+            contents: {}
+            params: {}
+            expected_packages:
+              -   - S1/ok.csv
+            expect_error: false
+          - name: nothing_to_do
+            event:
+            listing:
+              - incoming/readme.txt:10
+            contents: {}
+            params: {}
+            expected_packages: []
+            expect_error: false
+    destination:
+      name: sas_restructured
+      reuse: false
+      spec:
+        api_version: pkf/v1
+        kind: destination
+        name: sas_restructured
+        description: from the destination part of the pipeline requirement
+        type: s3
+        connection:
+          bucket: <REQUIRED>
+          region: eu-north-1
+        credentials:
+          provider: none
+        delivery:
+          if_exists: overwrite
+          server_side_encryption:
+          write_success_marker: false
+        params: {}
+        requirement: "Source and destination are the same S3 bucket (region eu-north-1, bucket set per environment). Each
+          package is one file whose path is relative to incoming/; the first folder is the study ID (used exactly as written,
+          case and hyphens kept). Files are never opened or changed; only their location changes. Decide the target from the
+          folder path only (the path without the file name); the file name is always kept. Data format from the folder path:
+          adam if it contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise raw if it contains raw/ (so restricted_raw/
+          also counts as raw). For anonymised folders the data format comes from _adam_, _sdtm_, _raw_ or _restricted_raw_
+          (= raw). \"Last folder\" = the folder that directly contains the file. Check every rule below. Exactly one rule
+          must match.\n1. CDAP: path contains /data_reuse/ and /cdap_ and a data format. If it contains /cdap_csr -> {study}/extended_primary_use/primary/{format}/{file}.
+          Else if the last folder contains _ia -> take the third \"_\" part of the last folder (cdap_20210617_ia300 -> ia300)
+          and write it as ia_ + the rest (ia_300) -> {study}/extended_primary_use/interim/{format}/ia_300/{file}; fewer than
+          3 parts -> error. Else -> second \"_\" part of the last folder (cdap_20210617 -> 20210617) -> {study}/extended_primary_use/other/{format}/20210617/{file};
+          fewer than 2 parts -> error.\n2. IDAP: path contains /data_reuse/ and /idap and a data format -> {study}/internal_reuse/{format}/{last
+          folder}/{file}.\n3. MED: path contains /data_reuse/ and /med and a data format -> {study}/external_reuse/{format}/{last
+          folder}/{file}.\n4. ANON: path contains _anon_ and an underscore data format. If it contains _anon_csr -> {study}/anonymised/primary/{format}/{file}.
+          Else take the last \"_\" part of the last folder: if it starts with lowercase ia (case-sensitive, e.g. ia500) ->
+          {study}/anonymised/interim/{format}/ia_500/{file}; otherwise (e.g. 20220120) -> {study}/anonymised/other/{format}/20220120/{file}.\n\
+          5. CDAR: path contains /cdar/ and a data format. Reporting level = the folder right after the folder named \"ar\"\
+          \ (case-insensitive, compared in lowercase). No \"ar\" folder, or the reporting level is adam, sdtm or raw -> error.
+          csr -> {study}/primary/complete/{format}/{file}. Starts with ia -> remove \"ia\" and any leading \"_\", then add
+          \"ia_\" (ia1 -> ia_1, ia_psc -> ia_psc) -> {study}/primary/interim/{format}/{ia_x}/{file}. Anything else (e.g. bdr200)
+          -> {study}/primary/other/{format}/bdr200/{file}.\n6. OTHERS: path contains /data_reuse/ and a data format, and none
+          of /med, /cdap, /idap, /anon, _anon_ -> {study}/other/{format}/{last folder}/{file}.\n7. DEFAULT (pass-through):
+          path has none of /data_reuse/, _anon_, /cdar/ -> the same path (incoming/ removed).\nNo rule matches, more than
+          one rule matches, or the target cannot be worked out -> move the file to error/{path without incoming/}. Never drop
+          a file.\nDELIVERY BEHAVIOUR: Move, not copy: copy server-side (files can be larger than 5 GiB), confirm the target
+          exists, then delete the source from incoming/. If the copy or the check fails, leave the source in incoming/ so
+          the next run retries it; that file fails. An existing object at the target is overwritten. After a successful move,
+          replace all tags on the target with exactly one tag: ADDITIONAL_TAG = the original path without incoming/. A tagging
+          failure is only a warning (the file still counts as moved). Files moved to error/ get no tag change. Report one
+          line per file: source, target, rule or error reason. The run fails only if a copy, check or delete failed. Moving
+          files to error/ does not fail the run.\n"
+        examples:
+          - name: cdap_csr
+            files:
+              - d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/cdap_csr/a.sas7bdat
+            vars:
+              package: p1
+            params: {}
+            expected_keys:
+              - d0000c00004/extended_primary_use/primary/raw/a.sas7bdat
+            expect_error: false
+          - name: cdap_interim
+            files:
+              - d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/cdap_20210617_ia300/b.sas7bdat
+            vars:
+              package: p2
+            params: {}
+            expected_keys:
+              - d0000c00004/extended_primary_use/interim/raw/ia_300/b.sas7bdat
+            expect_error: false
+          - name: anon_other
+            files:
+              - d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat
+            vars:
+              package: p3
+            params: {}
+            expected_keys:
+              - d0000c00004/anonymised/other/raw/20220120/c.sas7bdat
+            expect_error: false
+          - name: cdar_interim
+            files:
+              - d0000c00004/root/cdar/d000/d0000c00004/ar/ia1/sdtm/dev/data/x/d.sas7bdat
+            vars:
+              package: p4
+            params: {}
+            expected_keys:
+              - d0000c00004/primary/interim/sdtm/ia_1/d.sas7bdat
+            expect_error: false
+          - name: cdar_error
+            files:
+              - 04-3077/root/cdar/d168/04-3077/adam/prod/data/adae.sas7bdat
+            vars:
+              package: p5
+            params: {}
+            expected_keys:
+              - error/04-3077/root/cdar/d168/04-3077/adam/prod/data/adae.sas7bdat
+            expect_error: false
+          - name: default_passthrough
+            files:
+              - ABCD-0000-0000/Export_Inventory_usr00001_2024-05-29_08-39-32.pdf
+            vars:
+              package: p6
+            params: {}
+            expected_keys:
+              - ABCD-0000-0000/Export_Inventory_usr00001_2024-05-29_08-39-32.pdf
+            expect_error: false
+  errors: []
+  package_name: '{source}_{ds_nodash}'
+  pipeline_examples:
+    - name: cdar_routes
+      messages: []
+      conf:
+      listing:
+        - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat:10
+        - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat:10
+      params: {}
+      expected_keys:
+        - d0000c00004/primary/complete/adam/a.sas7bdat
+        - d0000c00004/primary/other/raw/bdr200/c.sas7bdat
+      expect_error: false
+    - name: default_errors_and_skips
+      messages: []
+      conf:
+      listing:
+        - incoming/ABCD-0000-0000/Export_Inventory_usr00001_2024-05-29_08-39-32.pdf:10
+        - incoming/04-3077/root/cdar/d168/04-3077/adam/prod/data/adae.sas7bdat:10
+        - incoming/readme.txt:10
+        - incoming/04-3077/root/data_reuse/d525/04-3077/shared/adam/prod/data/no_extension:10
+      params: {}
+      expected_keys:
+        - ABCD-0000-0000/Export_Inventory_usr00001_2024-05-29_08-39-32.pdf
+        - error/04-3077/root/cdar/d168/04-3077/adam/prod/data/adae.sas7bdat
+      expect_error: false
+  assumptions:
+    - The existing trigger sas_schedule_trigger already has the required schedule, region and retry settings, so it is 
+      reused unchanged.
+    - The existing source sas_incoming and destination sas_restructured differ from the requirement (root, prefix and 
+      delivery), so they are redefined under the same names.
+    - The source and destination bucket names are per-environment values, so they are left as <REQUIRED>.
+    - Each file is its own package, so the package name is not used in the target keys. Package names follow the 
+      {source}_{ds_nodash} pattern.
+    - The target is computed from the path relative to incoming/, and the first folder is the study ID.
+  ambiguities: []
+  to_fill_in:
+    - destination.connection.bucket
+    - source.connection.bucket
+owned: []
+split_by:
+  task: decompose_pipeline
+  skill: decomposing-pipeline-requirements
+  skill_sha256: f75e3cd3693d33c81f2a67bbf552764ad3c87be7a6b5b524d93a44ebc27cbd5a
+  prompt_sha256: 4cc1ab04a8c3914629e0719f896a56fcee563a3268e35f5b57fae46968be2560
+  schema_sha256: 8f8f0c94338e8a18c5595e6fc893838a63995bcdbc67c49f9f9b19853077de24
+  model: claude-sonnet-5-5
+  prompt_version: '1'
+split_digest: 0d155d4497b12752e6e49e7cfdbbca94f3d27cbe5e83685dda888138b181bd93
