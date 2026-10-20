@@ -1,10 +1,11 @@
-# pkf Studio project (read from the base branch only). Studio 0.6.0
+# pkf Studio project (read from the base branch only). Studio 0.8.2
 mode: dev
 base_branch: main
 github_api: https://api.github.com
 aws_account_id: '992382551516'
 aws_region: eu-north-1
 tags: {}
+run_role_arn: arn:aws:iam::992382551516:role/dwh-data-factory
 terraform_backend: {}
 code_owners:
 - '@jsandy16'
