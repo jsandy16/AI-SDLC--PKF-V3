@@ -1,0 +1,55 @@
+{
+  "cost_usd": 0.164887,
+  "data": {
+    "assumptions": [
+      "split: The schedule start date (2026-10-01) and the retry policy (2 retries, 2 minutes apart) are described in the trigger requirement, because the trigger settings have no keys for them.",
+      "split: One package per file: the source splits by relative path and sets the variable file_key, which is used as the package name.",
+      "split: The bucket name is set per environment, so the config holds <REQUIRED>. The development value is given in the source requirement.",
+      "split: Delivery overwrites existing target objects (if_exists: overwrite) and is done by a custom_delivery step (move, check, tag).",
+      "split: Source and destination are the same bucket, with no transformation step."
+    ],
+    "components": {
+      "destination": "sas_study_bucket",
+      "source": "sas_incoming",
+      "trigger": "sas_folder_restructure_schedule"
+    },
+    "name": "components",
+    "removed": [
+      "destinations\\sas_restructured.yaml",
+      "destinations\\sas_restructured.lock.yaml",
+      "destinations\\sas_restructured.py",
+      "triggers\\sas_schedule_trigger.yaml"
+    ],
+    "to_fill_in": [
+      "destination.connection.bucket",
+      "source.connection.bucket"
+    ],
+    "written": [
+      "triggers\\sas_folder_restructure_schedule.yaml",
+      "sources\\sas_incoming.yaml",
+      "destinations\\sas_study_bucket.yaml",
+      "connections\\sas_folder_restructure_wf_connection.yaml"
+    ]
+  },
+  "ended_at": "2026-10-21T15:00:11+00:00",
+  "inputs_sha256": "f211953031c96ee416fb505c802cdefbc55882de2c6932e43cbd8aa01cf34ef4",
+  "issues": [
+    {
+      "code": "required",
+      "file": "",
+      "loc": "",
+      "msg": "fill in destination.connection.bucket (left <REQUIRED> by the split)",
+      "severity": "warning"
+    },
+    {
+      "code": "required",
+      "file": "",
+      "loc": "",
+      "msg": "fill in source.connection.bucket (left <REQUIRED> by the split)",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C2",
+  "started_at": "2026-10-21T14:58:10+00:00",
+  "status": "ok"
+}

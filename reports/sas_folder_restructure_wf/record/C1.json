@@ -1,0 +1,34 @@
+{
+  "cost_usd": 0.812111,
+  "data": {
+    "answered": [
+      "ENV-sas_bucket"
+    ],
+    "assumed": [],
+    "assumptions": [
+      "analyst: Path-contains checks (/data_reuse/, /cdap_, /adam/, raw/, _anon_, ...) are made on the folder path relative to incoming/, with a '/' added at the start and at the end, so that a first or last folder can still match.",
+      "analyst: Rules 1, 2, 3, 5 and 6 ('a data format') use the slash-style format (/adam/, /sdtm/, raw/). Only rule 4 (ANON) uses the underscore format.",
+      "analyst: The underscore format follows the same order as the slash format: _adam_, then _sdtm_, then _raw_ or _restricted_raw_.",
+      "analyst: Moving a file to error/ is also a move: server-side copy, check, then delete the source. If that fails, the file fails and so does the run.",
+      "analyst: 'Confirm the target exists' means a HEAD on the target returns an object of the same size as the source.",
+      "analyst: The server-side copy keeps the object's metadata. Files moved to error/ keep the tags copied from the source unchanged ('no tag change').",
+      "analyst: If the delete fails after a successful copy, the target stays in place and the source stays in incoming/. The next run copies it again, overwriting the target.",
+      "analyst: A file name has an extension when it contains a '.'.",
+      "analyst: The 'contains _ia' check on the CDAP last folder is case-sensitive.",
+      "analyst: CDAP interim: if the third part starts with 'ia', that 'ia' is replaced by 'ia_'. Otherwise 'ia_' is put in front of the whole part.",
+      "analyst: The per-file report goes to the run log.",
+      "analyst: Runs do not overlap: at most one run is active at a time.",
+      "analyst: The cron '*/45 * * * *' is used as written (it fires at :00 and :45 of each hour)."
+    ],
+    "examples": 5,
+    "file": "pipelines/sas_folder_restructure_wf.yaml",
+    "name": "analyse",
+    "questions": []
+  },
+  "ended_at": "2026-10-21T14:58:10+00:00",
+  "inputs_sha256": "b4cf117322146fa7fe6c8b25fa02a9ec237565c478100fe59d1d50cacd9ac076",
+  "issues": [],
+  "stage": "C1",
+  "started_at": "2026-10-21T14:50:56+00:00",
+  "status": "ok"
+}

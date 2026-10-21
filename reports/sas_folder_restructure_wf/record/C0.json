@@ -1,0 +1,25 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "budget_usd": 25.0,
+    "name": "preflight",
+    "provider": "agent-sdk",
+    "python": "3.12.3",
+    "spent_usd": 6.8417
+  },
+  "ended_at": "2026-10-21T17:10:00+00:00",
+  "inputs_sha256": "7eb51405d556950d5c66c8453f94ab1caa6f501848f2def18584b61a8f21ca37",
+  "issues": [
+    {
+      "code": "missing_tool",
+      "file": "",
+      "loc": "",
+      "msg": "terraform not found on PATH: needed for the infrastructure stage (C8)",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C0",
+  "started_at": "2026-10-21T17:09:52+00:00",
+  "status": "ok"
+}

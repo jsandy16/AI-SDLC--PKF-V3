@@ -1,0 +1,18 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "components": {
+      "destination/sas_study_bucket": "ready",
+      "source/sas_incoming": "ready",
+      "trigger/sas_folder_restructure_schedule": "ready"
+    },
+    "name": "components tested"
+  },
+  "ended_at": "2026-10-21T17:11:04+00:00",
+  "inputs_sha256": "7d27dffbbbbf8a29ec85d874b7e5e6317023580b5730b7a317590dd1236d886d",
+  "issues": [],
+  "stage": "C5",
+  "started_at": "2026-10-21T17:10:41+00:00",
+  "status": "ok"
+}

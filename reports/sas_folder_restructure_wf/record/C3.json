@@ -1,0 +1,36 @@
+{
+  "cost_usd": 0.850116,
+  "data": {
+    "assumptions": [
+      "trigger/sas_folder_restructure_schedule plan: The cron expression, the start date 2026-10-01, the retries (2, 2 minutes apart) and at most one active run are pipeline/DAG schedule settings. The `schedule` step takes no parameters for them.",
+      "trigger/sas_folder_restructure_schedule plan: The R-RUN clauses and the listing of incoming/ (R-TRG-2) are carried out by the source and destination components. This trigger only provides the one event per run that starts them, so it cites those clauses for coverage.",
+      "trigger/sas_folder_restructure_schedule plan: \"*/45 * * * *\" is standard cron, so it fires at minutes 0 and 45 of every hour, not strictly every 45 minutes.",
+      "source/sas_incoming plan: The R-RUN clauses (server-side copy above 5 GiB, existence check, delete, overwrite, tag replacement, warning-only tagging, no tags in error/, report lines, run outcome) are carried out by the destination's custom_delivery step. The source steps cite them because they provide the per-file S3 reference, size and file_key that delivery needs, and the one-file-per-package isolation.",
+      "source/sas_incoming plan: A name 'has an extension' when its last path segment contains a '.' anywhere. Dotfiles like '.keep' and names ending in '.' therefore count as having one.",
+      "source/sas_incoming plan: Zero-byte files inside a study folder that have an extension are kept, like any other file.",
+      "source/sas_incoming plan: The bucket name comes from the per-environment S3 connection settings and is never written in the plan.",
+      "destination/sas_study_bucket plan: All contains checks run on the folder path relative to incoming/ (without the file name), wrapped in a leading and a trailing '/'. The file name is never checked.",
+      "destination/sas_study_bucket plan: Study = the first folder of the package path. Package paths are already relative to incoming/; the source key is incoming/ + path.",
+      "destination/sas_study_bucket plan: CDAP interim: the third '_' part is written as 'ia_' + the part with a leading 'ia' (any case) and any leading '_' removed. If the part does not start with 'ia', the whole part goes after 'ia_'. An empty rest gives an error.",
+      "destination/sas_study_bucket plan: CDAR: the first folder named 'ar' (case-insensitive) is used. The reporting level is written in the key as it appears in the path; the lowercase form is used only for the comparisons.",
+      "destination/sas_study_bucket plan: ANON 'last part' = the text after the last '_' in the last folder. ANON with _anon_csr is checked against the whole wrapped folder path.",
+      "destination/sas_study_bucket plan: OTHERS matches only on /data_reuse/, a data format and the absence of /med, /cdap, /idap, /anon and _anon_. The CDAR marker /cdar/ does not exclude it, so data_reuse+cdar paths match two rules and go to error/, as the worked example shows.",
+      "destination/sas_study_bucket plan: A delete that fails after a good copy gives status 'failed' (the run fails, as the requirement says). The copied target is left in place.",
+      "destination/sas_study_bucket plan: When the tag value (the path) is not a valid S3 tag value (more than 256 characters or characters S3 does not allow), tagging is skipped with a warning and the file still counts as moved. The value is not truncated.",
+      "destination/sas_study_bucket plan: The delivery step calls decide_route again to get the rule or error reason for its report line. The function is pure, so it gives the same result as in the routing step.",
+      "destination/sas_study_bucket plan: Delivery policies stay as configured: overwrite, no SSE, no success marker."
+    ],
+    "name": "units",
+    "planned": [
+      "trigger/sas_folder_restructure_schedule",
+      "source/sas_incoming",
+      "destination/sas_study_bucket"
+    ]
+  },
+  "ended_at": "2026-10-21T15:12:30+00:00",
+  "inputs_sha256": "045fe77ebf84fe4cc465344943491b5d0cffaaf6e2f546c40d6fba56a7027ea9",
+  "issues": [],
+  "stage": "C3",
+  "started_at": "2026-10-21T15:03:05+00:00",
+  "status": "ok"
+}

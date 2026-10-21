@@ -1,0 +1,57 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "files": [
+      "infra/sas_folder_restructure_wf/iam-policy.json",
+      "infra/sas_folder_restructure_wf/manifest.json",
+      "infra/sas_folder_restructure_wf/policy-check.json"
+    ],
+    "manifest": {
+      "buckets": [],
+      "needs_apply": false,
+      "note": "nothing to apply \u2014 policy only",
+      "warnings": [
+        "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-sas-eu-north-1-992382551516"
+      ]
+    },
+    "name": "infra",
+    "policy_check": {
+      "simulate": "not checked: ClientError: An error occurred (ExpiredToken) when calling the SimulateCustomPolicy operation: The security token included in the request is expired",
+      "validate": "not checked: ClientError: An error occurred (ExpiredTokenException) when calling the ValidatePolicy operation: The security token included in the request is expired"
+    },
+    "reason": "nothing to apply",
+    "settings": ".pkf-studio/project.yaml",
+    "terraform": {
+      "skipped": "nothing to apply \u2014 policy only"
+    }
+  },
+  "ended_at": "2026-10-21T17:12:02+00:00",
+  "inputs_sha256": "e27af9dc523f73e0fee53665a18bab5044ab7cd1fee570fbf8b15a5f51b3e7c8",
+  "issues": [
+    {
+      "code": "infra_warning",
+      "file": "",
+      "loc": "",
+      "msg": "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-sas-eu-north-1-992382551516",
+      "severity": "warning"
+    },
+    {
+      "code": "policy_not_checked",
+      "file": "",
+      "loc": "",
+      "msg": "policy validate: not checked: ClientError: An error occurred (ExpiredTokenException) when calling the ValidatePolicy operation: The security token included in the request is expired",
+      "severity": "warning"
+    },
+    {
+      "code": "policy_not_checked",
+      "file": "",
+      "loc": "",
+      "msg": "policy simulate: not checked: ClientError: An error occurred (ExpiredToken) when calling the SimulateCustomPolicy operation: The security token included in the request is expired",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C8",
+  "started_at": "2026-10-21T17:11:48+00:00",
+  "status": "ok"
+}

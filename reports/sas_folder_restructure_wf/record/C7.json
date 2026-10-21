@@ -1,0 +1,32 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "name": "DAG",
+    "written": [
+      "dags/.airflowignore",
+      "dags/pkf_pipelines/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/pipeline.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/settings/dev.yaml",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/units/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/units/destination.py",
+      "dags/pkf_sas_folder_restructure_wf.py",
+      "tests/sas_folder_restructure_wf/test_sas_folder_restructure_wf.py"
+    ]
+  },
+  "ended_at": "2026-10-21T17:11:44+00:00",
+  "inputs_sha256": "77d9e2c1f2fe588f9cb847ce471daa07e5eb46950706864ddcdb89e67985aebe",
+  "issues": [
+    {
+      "code": "dag_import",
+      "file": "dags/pkf_sas_folder_restructure_wf.py",
+      "loc": "",
+      "msg": "Airflow is not installed here: the DAG's structure was checked, its Airflow import was not",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C7",
+  "started_at": "2026-10-21T17:11:26+00:00",
+  "status": "ok"
+}

@@ -1,0 +1,24 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "files": [
+      "dags/.airflowignore",
+      "dags/pkf_pipelines/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/pipeline.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/settings/dev.yaml",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/units/__init__.py",
+      "dags/pkf_pipelines/sas_folder_restructure_wf/units/destination.py",
+      "dags/pkf_sas_folder_restructure_wf.py",
+      "tests/sas_folder_restructure_wf/test_sas_folder_restructure_wf.py"
+    ],
+    "name": "pipeline class"
+  },
+  "ended_at": "2026-10-21T17:11:19+00:00",
+  "inputs_sha256": "702fa690907f434277c6398d8951c688da6720d7d85518f22e663f417dd84722",
+  "issues": [],
+  "stage": "C6",
+  "started_at": "2026-10-21T17:11:09+00:00",
+  "status": "ok"
+}

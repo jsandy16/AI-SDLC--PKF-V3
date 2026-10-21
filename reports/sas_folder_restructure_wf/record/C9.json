@@ -1,0 +1,22 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "name": "dev run",
+    "reason": "no usable AWS credentials: no valid AWS credentials (ExpiredToken): run aws sso login --profile my-custom-profile (or source ~/pkf/env.sh), then try again"
+  },
+  "ended_at": "2026-10-21T17:12:14+00:00",
+  "inputs_sha256": "213631c9f4dbfea501faa718e1efc39a574625243487832fa8b5667dd4408e0f",
+  "issues": [
+    {
+      "code": "no_credentials",
+      "file": "",
+      "loc": "",
+      "msg": "no valid AWS credentials (ExpiredToken): run aws sso login --profile my-custom-profile (or source ~/pkf/env.sh), then try again",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C9",
+  "started_at": "2026-10-21T17:12:06+00:00",
+  "status": "skipped"
+}
