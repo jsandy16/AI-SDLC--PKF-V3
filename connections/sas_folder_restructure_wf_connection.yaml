@@ -2,4 +2,4 @@ api_version: pkf/v1
 kind: connection
 name: sas_folder_restructure_wf_connection
 source: sas_incoming
-destination: sas_restructured
+destination: sas_study_bucket
