@@ -20,7 +20,6 @@
       "prefix": "",
       "type": "s3"
     },
-    "source_versioning": "Enabled",
     "staging": null,
     "warnings": [
       "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-sas-eu-north-1-992382551516"
@@ -28,7 +27,7 @@
   },
   "needs_apply": false,
   "note": "nothing to apply \u2014 policy only",
-  "rendered_by": "pkf-studio 0.8.0",
+  "rendered_by": "pkf-studio 0.9.0",
   "runtime_calls": [
     [
       "s3:ListBucket",
