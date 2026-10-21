@@ -1,0 +1,1819 @@
+# destinations/sas_study_bucket.lock.yaml — plan, step tests, simulation and code tests.
+# Written by `pkf plan/code/test` and `pkf create`. Do not edit by hand.
+lock_version: 2
+kind: destination
+name: sas_study_bucket
+requirement_sha256: e2df5d5c31597f5c650d1e07e995b827bb2e54a55c3f370d09a1412b60e31a8f
+plan:
+  summary: 'Gives each file a target key in the same bucket, worked out from its folder path. Seven rules are checked (CDAP,
+    IDAP, MED, ANON, CDAR, OTHERS, DEFAULT) and exactly one must match. Otherwise the file goes to error/{path}, so no file
+    is ever dropped. A final custom_delivery step then moves each file: a server-side managed copy (multipart for large files),
+    a check that the target exists with the right size, deletion of the source from incoming/, and on study targets a single
+    ADDITIONAL_TAG tag that replaces all others. It reports one line per file.'
+  why: The routing rules depend on parts of the path (study, last folder, the folder after 'ar', '_' parts), require 
+    exactly one rule to match, and send everything else to an error/ prefix. route's first-match-wins globs cannot 
+    express that, so one custom step computes every key with small pure helpers. Moving, deleting the source, replacing 
+    tags and treating a tagging failure as a warning are not part of the framework's upload, so the plan ends with one 
+    custom_delivery step. It receives the target keys from the first step and calls the same pure routing helper again 
+    (decide_route) to get the rule name or error reason for its report line, so nothing extra has to be carried in the 
+    layout.
+  steps:
+    - id: route_by_folder_rules
+      op: custom
+      title: Work out each file's target key from its folder path with the seven study rules; anything unclear goes to 
+        error/
+      params:
+        function: route_by_folder_rules
+      pseudocode: "1. For each path in layout['files'] whose layout['keys'].get(path) is None or missing:\n2.   key, label
+        = decide_route(path)\n3.   layout['keys'][path] = key   (never None: a file is never dropped)\n4.   log one line:
+        path, key, label\n5. Return layout. Never raises for a routing problem: a missing rule, several rules or an unworkable
+        target all give error/{path}."
+      unit:
+        requires: layout['files'] = [path relative to incoming/] (one file per package); layout['keys'] empty
+        guarantees: "layout['keys'][path] is set for every file: a study key, the same path (DEFAULT), or 'error/' + path.
+          No key is None."
+        clauses:
+          - R-DST-1
+          - R-DST-2
+          - R-DST-3
+          - R-DST-4
+          - R-DST-5
+          - R-DST-6
+          - R-DST-7
+          - R-DST-8
+          - R-DST-9
+          - R-DST-10
+          - R-DST-11
+          - R-DST-12
+          - R-DST-13
+          - R-DST-14
+          - R-DST-15
+          - R-DST-16
+          - R-DST-17
+          - R-DST-18
+          - R-DST-19
+          - R-DST-20
+          - R-DST-21
+          - R-DST-22
+          - R-DST-23
+          - R-DST-24
+          - R-DST-25
+          - R-DST-26
+          - R-DST-27
+          - R-DST-28
+          - R-DST-29
+        reason: route takes the first matching rule, but here every rule must be checked and exactly one must match. 
+          Keys are built from path segments (study, last folder, the folder after 'ar', '_' parts of a folder), and a 
+          failure must go to an error/ prefix instead of failing. No catalogue operation can do that.
+        edge_cases:
+          - NAM-BAD-CHARS
+          - NAM-KEY-LENGTH
+          - "REQ-1: file at the root of incoming/ (no folder) → wrapped folder '/' → only DEFAULT matches → key = path"
+          - 'REQ-2: CDAR and OTHERS both match (data_reuse + cdar) → error/{path}'
+          - "REQ-3: CDAP interim whose last folder has fewer than 3 '_' parts → error/{path}"
+          - "REQ-4: CDAP other whose last folder has fewer than 2 '_' parts → error/{path}"
+          - "REQ-5: CDAR with no 'ar' folder, 'ar' as the last folder, or a level of adam/sdtm/raw (any case) → error/{path}"
+          - "REQ-6: ANON last part 'IA500' (uppercase) → other, not interim"
+          - 'REQ-7: restricted_raw/ → raw; _restricted_raw_ → raw'
+          - 'REQ-8: the study folder is used exactly as written (case kept)'
+          - 'REQ-9: a path with no data format under /data_reuse/ matches nothing → error/{path}'
+        functions:
+          - name: split_path
+            signature: 'def split_path(path: str) -> tuple[list[str], str, str]'
+            purpose: Splits a package path into its folders, its file name and the wrapped folder path used by the 
+              contains checks.
+            pseudocode: "1. parts = path.split('/'); file = parts[-1]; folders = [p for p in parts[:-1] if p != '']\n2. wrapped
+              = '/' + '/'.join(folders) + '/' if folders else '/'\n3. Return (folders, file, wrapped)."
+          - name: data_format
+            signature: 'def data_format(wrapped: str) -> str | None'
+            purpose: 'Data format from the folder path: adam, sdtm or raw by priority, else None.'
+            pseudocode: "1. If '/adam/' in wrapped → 'adam'.\n2. Elif '/sdtm/' in wrapped → 'sdtm'.\n3. Elif 'raw/' in wrapped
+              → 'raw' (this also covers restricted_raw/).\n4. Else None."
+          - name: underscore_format
+            signature: 'def underscore_format(wrapped: str) -> str | None'
+            purpose: Data format for anonymised folders, taken from the underscore markers.
+            pseudocode: "1. If '_adam_' in wrapped → 'adam'.\n2. Elif '_sdtm_' in wrapped → 'sdtm'.\n3. Elif '_raw_' in wrapped
+              or '_restricted_raw_' in wrapped → 'raw'.\n4. Else None."
+          - name: matching_rules
+            signature: 'def matching_rules(wrapped: str) -> list[str]'
+            purpose: Checks every rule and returns the names of all rules that match.
+            pseudocode: "1. fmt = data_format(wrapped); ufmt = underscore_format(wrapped); dr = '/data_reuse/' in wrapped\n\
+              2. CDAP if dr and '/cdap_' in wrapped and fmt\n3. IDAP if dr and '/idap' in wrapped and fmt\n4. MED if dr and
+              '/med' in wrapped and fmt\n5. ANON if '_anon_' in wrapped and ufmt\n6. CDAR if '/cdar/' in wrapped and fmt\n\
+              7. OTHERS if dr and fmt and none of '/med','/cdap','/idap','/anon','_anon_' in wrapped\n8. DEFAULT if none of
+              '/data_reuse/','_anon_','/cdar/' in wrapped\n9. Return the names in this order."
+          - name: ia_label
+            signature: 'def ia_label(part: str) -> str'
+            purpose: Writes an interim part as ia_ + the rest.
+            pseudocode: "1. rest = part[2:] if part.lower().startswith('ia') else part\n2. rest = rest.lstrip('_')\n3. If
+              rest == '' → raise ValueError('empty interim label').\n4. Return 'ia_' + rest."
+          - name: target_cdap
+            signature: 'def target_cdap(folders: list[str], file: str, wrapped: str, fmt: str) -> str'
+            purpose: 'CDAP key: primary, interim or other.'
+            pseudocode: "1. study = folders[0]; last = folders[-1]\n2. If '/cdap_csr' in wrapped → f'{study}/extended_primary_use/primary/{fmt}/{file}'.\n\
+              3. parts = last.split('_')\n4. If '_ia' in last: if len(parts) < 3 → raise ValueError('CDAP interim: fewer than
+              3 parts in last folder'); return f'{study}/extended_primary_use/interim/{fmt}/{ia_label(parts[2])}/{file}'.\n\
+              5. If len(parts) < 2 → raise ValueError('CDAP other: fewer than 2 parts in last folder').\n6. Return f'{study}/extended_primary_use/other/{fmt}/{parts[1]}/{file}'."
+          - name: target_anon
+            signature: 'def target_anon(folders: list[str], file: str, wrapped: str, ufmt: str) -> str'
+            purpose: 'ANON key: primary, interim or other.'
+            pseudocode: "1. study = folders[0]; last = folders[-1]\n2. If '_anon_csr' in wrapped → f'{study}/anonymised/primary/{ufmt}/{file}'.\n\
+              3. part = last.split('_')[-1]\n4. If part.startswith('ia') (case-sensitive) → f'{study}/anonymised/interim/{ufmt}/{ia_label(part)}/{file}'.\n\
+              5. If part == '' → raise ValueError('ANON: empty last part').\n6. Else → f'{study}/anonymised/other/{ufmt}/{part}/{file}'."
+          - name: target_cdar
+            signature: 'def target_cdar(folders: list[str], file: str, fmt: str) -> str'
+            purpose: CDAR key from the reporting level after the 'ar' folder.
+            pseudocode: "1. i = index of the first folder f with f.lower() == 'ar'; if none or i is the last folder → raise
+              ValueError('CDAR: no reporting level after ar').\n2. level = folders[i+1]; low = level.lower()\n3. If low in
+              ('adam','sdtm','raw') → raise ValueError(f'CDAR: reporting level is {low}').\n4. study = folders[0]\n5. If low
+              == 'csr' → f'{study}/primary/complete/{fmt}/{file}'.\n6. If low.startswith('ia') → f'{study}/primary/interim/{fmt}/{ia_label(level)}/{file}'.\n\
+              7. Else → f'{study}/primary/other/{fmt}/{level}/{file}'."
+          - name: decide_route
+            signature: 'def decide_route(path: str) -> tuple[str, str]'
+            purpose: Final key and the rule name or error reason for one file.
+            pseudocode: "1. folders, file, wrapped = split_path(path); err = 'error/' + path\n2. rules = matching_rules(wrapped)\n\
+              3. If len(rules) == 0 → (err, 'error: no rule matches').\n4. If len(rules) > 1 → (err, 'error: several rules
+              match: ' + ','.join(rules)).\n5. rule = rules[0]; fmt = data_format(wrapped); ufmt = underscore_format(wrapped)\n\
+              6. Try: CDAP → target_cdap(folders, file, wrapped, fmt); IDAP → f'{folders[0]}/internal_reuse/{fmt}/{folders[-1]}/{file}';
+              MED → f'{folders[0]}/external_reuse/{fmt}/{folders[-1]}/{file}'; ANON → target_anon(folders, file, wrapped,
+              ufmt); CDAR → target_cdar(folders, file, fmt); OTHERS → f'{folders[0]}/other/{fmt}/{folders[-1]}/{file}'; DEFAULT
+              → path.\n7. On ValueError e → (err, f'error: {rule}: {e}').\n8. If len(key.encode('utf-8')) > 1024 → (err, 'error:
+              key longer than 1024 bytes').\n9. Return (key, rule)."
+    - id: move_and_tag
+      op: custom_delivery
+      title: Move each file (copy, check, delete source), tag study targets and report one line per file
+      params:
+        function: move_and_tag
+      pseudocode: "1. results = []. For each t in transfers (one failing file does not stop the others):\n2.   label = decide_route(t['path'])[1];
+        to_error = is_error_target(t['target_key'])\n3.   extra = {'CopySourceIfMatch': t['etag']} if t['etag'] else {}; add
+        ServerSideEncryption / SSEKMSKeyId from ctx['delivery'] when set (overwrite: no existence check).\n4.   Try aws.s3_destination.copy({'Bucket':
+        t['source_bucket'], 'Key': t['source_key']}, t['target_bucket'], t['target_key'], ExtraArgs=extra, SourceClient=aws.s3_source)
+        (managed copy, multipart for large files). On error → result failed 'copy failed: <err>'; source left in place; log;
+        continue.\n5.   Try head = aws.s3_destination.head_object(Bucket=t['target_bucket'], Key=t['target_key']); if head['ContentLength']
+        != t['size'] → failed 'check failed: size mismatch'; on error → failed 'check failed: <err>'; source left in place;
+        continue.\n6.   Try d = aws.s3_source.delete_object(Bucket=t['source_bucket'], Key=t['source_key']); on error → failed
+        'delete failed: <err> (target copied)'; continue. note = ' (delete marker)' if d.get('DeleteMarker') else ''.\n7.\
+        \   If not to_error: value = t['path']; if tag_value_ok(value): try aws.s3_destination.put_object_tagging(Bucket=t['target_bucket'],
+        Key=t['target_key'], Tagging={'TagSet':[{'Key':'ADDITIONAL_TAG','Value':value}]}) except error → aws.log.warning(...)
+        and record 'tag warning' in detail; else aws.log.warning('tag value not allowed') and record it in detail.\n8.   status
+        = 'moved_to_error' if to_error else 'moved'; detail = label + note + any tag warning.\n9.   aws.log.info(report_line(t['source_key'],
+        t['target_key'], detail)); append {'path': t['path'], 'key': t['target_key'], 'status': status, 'detail': detail}.\n\
+        10. Return results (exactly one per transfer)."
+      unit:
+        requires: "layout['keys'] set for every file by route_by_folder_rules; S3 source and destination are the same bucket;
+          no transformation; ctx['delivery'] = {if_exists: overwrite, server_side_encryption: null, kms_key_id: null}"
+        guarantees: Each moved file is at its target key and its incoming/ source is deleted. Study targets carry 
+          exactly one tag, ADDITIONAL_TAG = the path. error/ targets keep their tags. A failed copy or check leaves the 
+          source in place with status 'failed'. A failed delete gives status 'failed'. There is one result per transfer.
+        clauses:
+          - R-RUN-1
+          - R-RUN-2
+          - R-RUN-3
+          - R-RUN-4
+          - R-RUN-5
+          - R-RUN-6
+          - R-RUN-7
+          - R-RUN-8
+          - R-RUN-9
+          - R-RUN-10
+          - R-RUN-11
+          - R-RUN-12
+          - R-DST-28
+        reason: Moves (deleting the source after a confirmed copy), replacing object tags with a tagging failure counted
+          only as a warning, and per-file move statuses where error/ moves do not fail the run are not part of the 
+          framework's upload.
+        edge_cases:
+          - DEL-OVERWRITE
+          - DEL-LARGE-COPY
+          - DEL-PARTIAL
+          - DEL-IDEMPOTENT
+          - DEL-SSE
+          - DEL-VERSIONED
+          - DEL-TAGS
+          - DEL-VERIFY
+          - 'REQ-10: the ETag changed since listing (CopySourceIfMatch fails) → failed, source kept'
+          - 'REQ-11: tag value longer than 256 characters or with characters S3 does not allow → warning, the file still counts
+            as moved'
+          - 'REQ-12: delete fails after a good copy → failed (the run fails); the target stays'
+        functions:
+          - name: is_error_target
+            signature: 'def is_error_target(key: str) -> bool'
+            purpose: Whether a target key is under the error/ prefix.
+            pseudocode: 1. Return key.startswith('error/').
+          - name: tag_value_ok
+            signature: 'def tag_value_ok(value: str) -> bool'
+            purpose: Whether a string is a valid S3 tag value.
+            pseudocode: 1. Return len(value) <= 256 and every character is a Unicode letter, digit, whitespace or one of
+              '+-=._:/@'.
+          - name: report_line
+            signature: 'def report_line(source_key: str, target_key: str, detail: str) -> str'
+            purpose: Builds the one-line report for a file.
+            pseudocode: 1. Return f'source={source_key} target={target_key} reason={detail}'.
+  assumptions:
+    - All contains checks run on the folder path relative to incoming/ (without the file name), wrapped in a leading and
+      a trailing '/'. The file name is never checked.
+    - Study = the first folder of the package path. Package paths are already relative to incoming/; the source key is 
+      incoming/ + path.
+    - "CDAP interim: the third '_' part is written as 'ia_' + the part with a leading 'ia' (any case) and any leading '_'
+      removed. If the part does not start with 'ia', the whole part goes after 'ia_'. An empty rest gives an error."
+    - "CDAR: the first folder named 'ar' (case-insensitive) is used. The reporting level is written in the key as it appears
+      in the path; the lowercase form is used only for the comparisons."
+    - ANON 'last part' = the text after the last '_' in the last folder. ANON with _anon_csr is checked against the 
+      whole wrapped folder path.
+    - OTHERS matches only on /data_reuse/, a data format and the absence of /med, /cdap, /idap, /anon and _anon_. The 
+      CDAR marker /cdar/ does not exclude it, so data_reuse+cdar paths match two rules and go to error/, as the worked 
+      example shows.
+    - A delete that fails after a good copy gives status 'failed' (the run fails, as the requirement says). The copied 
+      target is left in place.
+    - When the tag value (the path) is not a valid S3 tag value (more than 256 characters or characters S3 does not 
+      allow), tagging is skipped with a warning and the file still counts as moved. The value is not truncated.
+    - The delivery step calls decide_route again to get the rule or error reason for its report line. The function is 
+      pure, so it gives the same result as in the routing step.
+    - 'Delivery policies stay as configured: overwrite, no SSE, no success marker.'
+  ambiguities: []
+  step_tests:
+    route_by_folder_rules:
+      - name: cdar_interim
+        purpose: CDAR interim worked example
+        input:
+          files:
+            - S1/root/cdar/d000/S1/ar/ia100/sdtm/dev/data/x/b.sas7bdat
+          vars:
+            package: S1/root/cdar/d000/S1/ar/ia100/sdtm/dev/data/x/b.sas7bdat
+          keys: {}
+        params: {}
+        expected:
+          - S1/primary/interim/sdtm/ia_100/b.sas7bdat
+        expect_error: false
+        covers:
+          - R-DST-1
+          - R-DST-2
+          - R-DST-19
+          - R-DST-20
+          - R-DST-23
+          - R-DST-29
+      - name: cdap_interim
+        purpose: CDAP interim with ia_ label
+        input:
+          files:
+            - d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/cdap_20210617_ia300/b.sas7bdat
+          vars:
+            package: x
+          keys: {}
+        params: {}
+        expected:
+          - d0000c00004/extended_primary_use/interim/raw/ia_300/b.sas7bdat
+        expect_error: false
+        covers:
+          - R-DST-5
+          - R-DST-7
+          - R-DST-9
+      - name: anon_other
+        purpose: ANON other with date part
+        input:
+          files:
+            - d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat
+          vars:
+            package: x
+          keys: {}
+        params: {}
+        expected:
+          - d0000c00004/anonymised/other/raw/20220120/c.sas7bdat
+        expect_error: false
+        covers:
+          - R-DST-4
+          - R-DST-15
+          - R-DST-18
+      - name: default_passthrough
+        purpose: DEFAULT keeps path
+        input:
+          files:
+            - ABCD-0000-0000/Export_Inventory.pdf
+          vars:
+            package: x
+          keys: {}
+        params: {}
+        expected:
+          - ABCD-0000-0000/Export_Inventory.pdf
+        expect_error: false
+        covers:
+          - R-DST-26
+          - R-DST-6
+      - name: two_rules_match_goes_to_error
+        purpose: CDAR and OTHERS both match -> error/
+        input:
+          files:
+            - 04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+          vars:
+            package: x
+          keys: {}
+        params: {}
+        expected:
+          - error/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+        expect_error: false
+        covers:
+          - R-DST-27
+          - R-DST-28
+          - REQ-2
+      - name: root_file
+        purpose: File at root of incoming/ -> DEFAULT
+        input:
+          files:
+            - f.txt
+          vars: {}
+          keys: {}
+        params: {}
+        expected:
+          - f.txt
+        expect_error: false
+        covers:
+          - REQ-1
+          - R-DST-26
+      - name: already_placed_kept
+        purpose: A key placed by an earlier step is not changed; the other file is routed
+        input:
+          files:
+            - a/x.txt
+            - b/y.txt
+          vars: {}
+          keys:
+            a/x.txt: custom/x.txt
+        params: {}
+        expected:
+          - custom/x.txt
+          - b/y.txt
+        expect_error: false
+        covers:
+          - R-DST-28
+      - name: idap_med_others
+        purpose: IDAP, MED and OTHERS keys in order
+        input:
+          files:
+            - S1/data_reuse/adam/idap1/f.sas7bdat
+            - S1/data_reuse/sdtm/med2/g.sas7bdat
+            - S1/data_reuse/raw/misc/h.csv
+          vars: {}
+          keys: {}
+        params: {}
+        expected:
+          - S1/internal_reuse/adam/idap1/f.sas7bdat
+          - S1/external_reuse/sdtm/med2/g.sas7bdat
+          - S1/other/raw/misc/h.csv
+        expect_error: false
+        covers:
+          - R-DST-13
+          - R-DST-14
+          - R-DST-25
+          - R-DST-3
+          - REQ-7
+          - REQ-8
+    move_and_tag:
+      - name: move_study_target_overwrites_and_retags
+        purpose: 'Normal move to a study target: existing target overwritten, source deleted, tags replaced by exactly ADDITIONAL_TAG=path'
+        input:
+          objects:
+            bkt/incoming/d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat: hello
+            bkt/d0000c00004/anonymised/other/raw/20220120/c.sas7bdat:
+              body: old
+              tags:
+                OLD: x
+          transfers:
+            - path: d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat
+              source_bucket: bkt
+              source_key: incoming/d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: d0000c00004/anonymised/other/raw/20220120/c.sas7bdat
+        params: {}
+        expected:
+          objects:
+            - bkt/d0000c00004/anonymised/other/raw/20220120/c.sas7bdat
+          tags:
+            bkt/d0000c00004/anonymised/other/raw/20220120/c.sas7bdat:
+              ADDITIONAL_TAG: d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat
+          statuses:
+            d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat: moved
+        expect_error: false
+        covers:
+          - R-RUN-1
+          - R-RUN-2
+          - R-RUN-3
+          - R-RUN-5
+          - R-RUN-6
+          - R-RUN-9
+          - R-RUN-10
+          - DEL-OVERWRITE
+          - DEL-TAGS
+          - DEL-VERIFY
+          - DEL-LARGE-COPY
+          - DEL-SSE
+          - DEL-IDEMPOTENT
+          - R-DST-28
+      - name: move_to_error_keeps_tags
+        purpose: 'error/ target: copy, check, delete still happen, no tag change, status moved_to_error'
+        input:
+          objects:
+            bkt/incoming/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat:
+              body: hello
+              tags:
+                K: v
+          transfers:
+            - path: 04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+              source_bucket: bkt
+              source_key: incoming/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: error/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+        params: {}
+        expected:
+          objects:
+            - bkt/error/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat
+          tags:
+            bkt/error/04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat:
+              K: v
+          statuses:
+            04-3077/root/data_reuse/cdar/d168/04-3077/ar/csr/adam/prod/data/adae.sas7bdat: moved_to_error
+        expect_error: false
+        covers:
+          - R-RUN-8
+          - R-RUN-11
+          - R-RUN-12
+          - R-RUN-9
+          - R-DST-28
+      - name: copy_fails_source_kept
+        purpose: 'Copy failure: source stays, no target, status failed'
+        input:
+          objects:
+            bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf: hello
+          transfers:
+            - path: ABCD-0000-0000/Export_Inventory.pdf
+              source_bucket: bkt
+              source_key: incoming/ABCD-0000-0000/Export_Inventory.pdf
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: ABCD-0000-0000/Export_Inventory.pdf
+          fail_calls:
+            - operation: CopyObject
+              key:
+        params: {}
+        expected:
+          objects:
+            - bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf
+          tags: {}
+          statuses:
+            ABCD-0000-0000/Export_Inventory.pdf: failed
+        expect_error: false
+        covers:
+          - R-RUN-4
+          - R-RUN-10
+          - DEL-VERIFY
+      - name: size_mismatch_fails_source_kept
+        purpose: 'Check fails on size mismatch: source not deleted, failed'
+        input:
+          objects:
+            bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf: hello
+          transfers:
+            - path: ABCD-0000-0000/Export_Inventory.pdf
+              source_bucket: bkt
+              source_key: incoming/ABCD-0000-0000/Export_Inventory.pdf
+              size: 99
+              etag:
+              target_bucket: bkt
+              target_key: ABCD-0000-0000/Export_Inventory.pdf
+        params: {}
+        expected:
+          objects:
+            - bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf
+            - bkt/ABCD-0000-0000/Export_Inventory.pdf
+          statuses:
+            ABCD-0000-0000/Export_Inventory.pdf: failed
+          tags: {}
+        expect_error: false
+        covers:
+          - R-RUN-2
+          - R-RUN-4
+          - DEL-VERIFY
+      - name: delete_fails_target_stays
+        purpose: 'Delete failure after good copy: failed, target stays'
+        input:
+          objects:
+            bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf: hello
+          transfers:
+            - path: ABCD-0000-0000/Export_Inventory.pdf
+              source_bucket: bkt
+              source_key: incoming/ABCD-0000-0000/Export_Inventory.pdf
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: ABCD-0000-0000/Export_Inventory.pdf
+          fail_calls:
+            - operation: DeleteObject
+              key:
+        params: {}
+        expected:
+          objects:
+            - bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf
+            - bkt/ABCD-0000-0000/Export_Inventory.pdf
+          statuses:
+            ABCD-0000-0000/Export_Inventory.pdf: failed
+          tags: {}
+        expect_error: false
+        covers:
+          - R-RUN-3
+          - R-RUN-10
+          - 'REQ-12: delete fails after a good copy → failed (the run fails); the target stays'
+      - name: tagging_failure_is_warning
+        purpose: 'Tagging fails: file still moved'
+        input:
+          objects:
+            bkt/incoming/ABCD-0000-0000/Export_Inventory.pdf: hello
+          transfers:
+            - path: ABCD-0000-0000/Export_Inventory.pdf
+              source_bucket: bkt
+              source_key: incoming/ABCD-0000-0000/Export_Inventory.pdf
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: ABCD-0000-0000/Export_Inventory.pdf
+          fail_calls:
+            - operation: PutObjectTagging
+              key:
+        params: {}
+        expected:
+          objects:
+            - bkt/ABCD-0000-0000/Export_Inventory.pdf
+          statuses:
+            ABCD-0000-0000/Export_Inventory.pdf: moved
+          tags: {}
+        expect_error: false
+        covers:
+          - R-RUN-7
+          - R-RUN-10
+          - DEL-TAGS
+      - name: invalid_tag_value_still_moved
+        purpose: 'Path with a character not allowed in tags: warning, file still moved, no tag set'
+        input:
+          objects:
+            bkt/incoming/S1/a$b.txt: hello
+          transfers:
+            - path: S1/a$b.txt
+              source_bucket: bkt
+              source_key: incoming/S1/a$b.txt
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: S1/a$b.txt
+        params: {}
+        expected:
+          objects:
+            - bkt/S1/a$b.txt
+          statuses:
+            S1/a$b.txt: moved
+          tags:
+            bkt/S1/a$b.txt: {}
+        expect_error: false
+        covers:
+          - 'REQ-11: tag value longer than 256 characters or with characters S3 does not allow → warning, the file still counts
+            as moved'
+          - R-RUN-7
+          - DEL-TAGS
+      - name: partial_failure_continues
+        purpose: One file's copy failing does not stop the next file
+        input:
+          objects:
+            bkt/incoming/S1/a.txt: hello
+            bkt/incoming/S1/b.txt: world
+          transfers:
+            - path: S1/a.txt
+              source_bucket: bkt
+              source_key: incoming/S1/a.txt
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: S1/a.txt
+            - path: S1/b.txt
+              source_bucket: bkt
+              source_key: incoming/S1/b.txt
+              size: 5
+              etag:
+              target_bucket: bkt
+              target_key: S1/b.txt
+          fail_calls:
+            - operation: CopyObject
+              key: S1/a.txt
+        params: {}
+        expected:
+          objects:
+            - bkt/incoming/S1/a.txt
+            - bkt/S1/b.txt
+          tags:
+            bkt/S1/b.txt:
+              ADDITIONAL_TAG: S1/b.txt
+          statuses:
+            S1/a.txt: failed
+            S1/b.txt: moved
+        expect_error: false
+        covers:
+          - DEL-PARTIAL
+          - R-RUN-4
+          - R-RUN-6
+          - R-RUN-10
+          - 'REQ-10: the ETag changed since listing (CopySourceIfMatch fails) → failed, source kept'
+          - DEL-VERSIONED
+  function_tests:
+    route_by_folder_rules:
+      - name: split_basic
+        function: split_path
+        args:
+          - S1/a/b.txt
+        expected:
+          -   - S1
+              - a
+          - b.txt
+          - /S1/a/
+        expect_error: false
+        covers:
+          - R-DST-1
+          - R-DST-29
+      - name: split_root
+        function: split_path
+        args:
+          - f.txt
+        expected:
+          - []
+          - f.txt
+          - /
+        expect_error: false
+        covers:
+          - REQ-1
+          - R-DST-29
+      - name: fmt_priority
+        function: data_format
+        args:
+          - /x/raw/sdtm/adam/
+        expected: adam
+        expect_error: false
+        covers:
+          - R-DST-2
+      - name: fmt_sdtm_over_raw
+        function: data_format
+        args:
+          - /x/raw/sdtm/
+        expected: sdtm
+        expect_error: false
+        covers:
+          - R-DST-2
+      - name: fmt_restricted_raw
+        function: data_format
+        args:
+          - /x/restricted_raw/
+        expected: raw
+        expect_error: false
+        covers:
+          - R-DST-3
+          - REQ-7
+      - name: fmt_none
+        function: data_format
+        args:
+          - /x/
+        expected:
+        expect_error: false
+        covers:
+          - R-DST-2
+      - name: ufmt_sdtm
+        function: underscore_format
+        args:
+          - /a_sdtm_x/
+        expected: sdtm
+        expect_error: false
+        covers:
+          - R-DST-4
+      - name: ufmt_restricted_raw
+        function: underscore_format
+        args:
+          - /a_restricted_raw_x/
+        expected: raw
+        expect_error: false
+        covers:
+          - R-DST-4
+          - REQ-7
+      - name: ufmt_none
+        function: underscore_format
+        args:
+          - /a_raw/
+        expected:
+        expect_error: false
+        covers:
+          - R-DST-4
+      - name: rules_cdar_others
+        function: matching_rules
+        args:
+          - /S1/data_reuse/cdar/ar/csr/adam/
+        expected:
+          - CDAR
+          - OTHERS
+        expect_error: false
+        covers:
+          - R-DST-6
+          - R-DST-19
+          - R-DST-25
+          - REQ-2
+      - name: rules_none_no_format
+        function: matching_rules
+        args:
+          - /S1/data_reuse/cdap_1/
+        expected: []
+        expect_error: false
+        covers:
+          - REQ-9
+          - R-DST-27
+      - name: rules_root_default
+        function: matching_rules
+        args:
+          - /
+        expected:
+          - DEFAULT
+        expect_error: false
+        covers:
+          - R-DST-26
+          - REQ-1
+      - name: rules_cdap
+        function: matching_rules
+        args:
+          - /S1/data_reuse/adam/cdap_1/
+        expected:
+          - CDAP
+        expect_error: false
+        covers:
+          - R-DST-7
+          - R-DST-25
+      - name: rules_anon
+        function: matching_rules
+        args:
+          - /S1/S1_raw_anon_1/
+        expected:
+          - ANON
+        expect_error: false
+        covers:
+          - R-DST-15
+      - name: ia_plain
+        function: ia_label
+        args:
+          - ia300
+        expected: ia_300
+        expect_error: false
+        covers:
+          - R-DST-9
+      - name: ia_underscore
+        function: ia_label
+        args:
+          - ia_psc
+        expected: ia_psc
+        expect_error: false
+        covers:
+          - R-DST-23
+      - name: ia_uppercase
+        function: ia_label
+        args:
+          - IA5
+        expected: ia_5
+        expect_error: false
+        covers:
+          - R-DST-23
+      - name: ia_empty
+        function: ia_label
+        args:
+          - ia
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-27
+      - name: cdap_csr
+        function: target_cdap
+        args:
+          -   - S1
+              - data_reuse
+              - cdap_csr
+          - f
+          - /S1/data_reuse/cdap_csr/
+          - raw
+        expected: S1/extended_primary_use/primary/raw/f
+        expect_error: false
+        covers:
+          - R-DST-8
+      - name: cdap_interim
+        function: target_cdap
+        args:
+          -   - S1
+              - data_reuse
+              - cdap_20210617_ia300
+          - f
+          - /S1/data_reuse/cdap_20210617_ia300/
+          - adam
+        expected: S1/extended_primary_use/interim/adam/ia_300/f
+        expect_error: false
+        covers:
+          - R-DST-9
+      - name: cdap_interim_short
+        function: target_cdap
+        args:
+          -   - S1
+              - cdap_ia
+          - f
+          - /S1/cdap_ia/
+          - adam
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-10
+          - REQ-3
+      - name: cdap_other
+        function: target_cdap
+        args:
+          -   - S1
+              - cdap_20210617
+          - f
+          - /S1/cdap_20210617/
+          - sdtm
+        expected: S1/extended_primary_use/other/sdtm/20210617/f
+        expect_error: false
+        covers:
+          - R-DST-11
+      - name: cdap_other_short
+        function: target_cdap
+        args:
+          -   - S1
+              - cdap
+          - f
+          - /S1/cdap/
+          - sdtm
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-12
+          - REQ-4
+      - name: anon_csr
+        function: target_anon
+        args:
+          -   - S1
+              - S1_adam_anon_csr
+          - f
+          - /S1/S1_adam_anon_csr/
+          - adam
+        expected: S1/anonymised/primary/adam/f
+        expect_error: false
+        covers:
+          - R-DST-16
+      - name: anon_interim
+        function: target_anon
+        args:
+          -   - S1
+              - S1_raw_anon_ia500
+          - f
+          - /S1/S1_raw_anon_ia500/
+          - raw
+        expected: S1/anonymised/interim/raw/ia_500/f
+        expect_error: false
+        covers:
+          - R-DST-17
+      - name: anon_uppercase_ia_is_other
+        function: target_anon
+        args:
+          -   - S1
+              - S1_raw_anon_IA500
+          - f
+          - /S1/S1_raw_anon_IA500/
+          - raw
+        expected: S1/anonymised/other/raw/IA500/f
+        expect_error: false
+        covers:
+          - R-DST-17
+          - R-DST-18
+          - REQ-6
+      - name: anon_empty_part
+        function: target_anon
+        args:
+          -   - S1
+              - S1_raw_anon_
+          - f
+          - /S1/S1_raw_anon_/
+          - raw
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-27
+      - name: cdar_csr
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - AR
+              - CSR
+              - x
+          - f
+          - adam
+        expected: S1/primary/complete/adam/f
+        expect_error: false
+        covers:
+          - R-DST-20
+          - R-DST-22
+      - name: cdar_ia_underscore
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - ar
+              - ia_psc
+              - x
+          - f
+          - sdtm
+        expected: S1/primary/interim/sdtm/ia_psc/f
+        expect_error: false
+        covers:
+          - R-DST-23
+      - name: cdar_ia1
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - ar
+              - ia1
+              - x
+          - f
+          - sdtm
+        expected: S1/primary/interim/sdtm/ia_1/f
+        expect_error: false
+        covers:
+          - R-DST-23
+      - name: cdar_other
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - ar
+              - bdr200
+              - x
+          - f
+          - raw
+        expected: S1/primary/other/raw/bdr200/f
+        expect_error: false
+        covers:
+          - R-DST-24
+      - name: cdar_no_ar
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - csr
+          - f
+          - raw
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-21
+          - REQ-5
+      - name: cdar_ar_last
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - ar
+          - f
+          - raw
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-21
+          - REQ-5
+      - name: cdar_level_sdtm_upper
+        function: target_cdar
+        args:
+          -   - S1
+              - cdar
+              - ar
+              - SDTM
+          - f
+          - sdtm
+        expected:
+        expect_error: true
+        covers:
+          - R-DST-21
+          - REQ-5
+      - name: route_cdap_csr
+        function: decide_route
+        args:
+          - S1/data_reuse/cdap_csr/adam/f
+        expected:
+          - S1/extended_primary_use/primary/adam/f
+          - CDAP
+        expect_error: false
+        covers:
+          - R-DST-8
+          - R-DST-1
+      - name: route_restricted_raw_others
+        function: decide_route
+        args:
+          - S1/data_reuse/restricted_raw/z/f
+        expected:
+          - S1/other/raw/z/f
+          - OTHERS
+        expect_error: false
+        covers:
+          - R-DST-3
+          - R-DST-25
+          - REQ-7
+      - name: route_study_case_kept
+        function: decide_route
+        args:
+          - Ab-1/data_reuse/sdtm/med2/g
+        expected:
+          - Ab-1/external_reuse/sdtm/med2/g
+          - MED
+        expect_error: false
+        covers:
+          - R-DST-14
+          - REQ-8
+      - name: route_no_rule
+        function: decide_route
+        args:
+          - S1/data_reuse/x/f.txt
+        expected:
+          - error/S1/data_reuse/x/f.txt
+          - 'error: no rule matches'
+        expect_error: false
+        covers:
+          - R-DST-27
+          - REQ-9
+      - name: route_several
+        function: decide_route
+        args:
+          - S1/data_reuse/cdar/ar/csr/adam/f
+        expected:
+          - error/S1/data_reuse/cdar/ar/csr/adam/f
+          - 'error: several rules match: CDAR,OTHERS'
+        expect_error: false
+        covers:
+          - R-DST-6
+          - R-DST-27
+          - REQ-2
+      - name: route_cdap_error
+        function: decide_route
+        args:
+          - S1/data_reuse/adam/cdap_ia/f
+        expected:
+          - error/S1/data_reuse/adam/cdap_ia/f
+          - 'error: CDAP: CDAP interim: fewer than 3 parts in last folder'
+        expect_error: false
+        covers:
+          - R-DST-10
+          - R-DST-27
+          - REQ-3
+      - name: route_cdar_level_error
+        function: decide_route
+        args:
+          - S1/cdar/ar/adam/x/f
+        expected:
+          - error/S1/cdar/ar/adam/x/f
+          - 'error: CDAR: CDAR: reporting level is adam'
+        expect_error: false
+        covers:
+          - R-DST-21
+          - R-DST-27
+          - REQ-5
+      - name: route_default_root
+        function: decide_route
+        args:
+          - f.txt
+        expected:
+          - f.txt
+          - DEFAULT
+        expect_error: false
+        covers:
+          - R-DST-26
+          - REQ-1
+      - name: route_key_too_long
+        function: decide_route
+        args:
+          - S1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/f.txt
+        expected:
+          - error/S1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/f.txt
+          - 'error: key longer than 1024 bytes'
+        expect_error: false
+        covers:
+          - NAM-KEY-LENGTH
+          - R-DST-27
+      - name: route_special_chars_kept
+        function: decide_route
+        args:
+          - S1/my dir/f (1).txt
+        expected:
+          - S1/my dir/f (1).txt
+          - DEFAULT
+        expect_error: false
+        covers:
+          - NAM-BAD-CHARS
+          - R-DST-1
+    move_and_tag:
+      - name: error_prefix_true
+        function: is_error_target
+        args:
+          - error/S1/a.txt
+        expected: true
+        expect_error: false
+        covers:
+          - R-RUN-8
+      - name: study_key_false
+        function: is_error_target
+        args:
+          - S1/error/a.txt
+        expected: false
+        expect_error: false
+        covers:
+          - R-RUN-8
+      - name: tag_ok_path
+        function: tag_value_ok
+        args:
+          - S1/a_b-c.d:e=f+g@h i
+        expected: true
+        expect_error: false
+        covers:
+          - DEL-TAGS
+      - name: tag_len_256_ok
+        function: tag_value_ok
+        args:
+          - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        expected: true
+        expect_error: false
+        covers:
+          - DEL-TAGS
+      - name: tag_len_257_bad
+        function: tag_value_ok
+        args:
+          - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        expected: false
+        expect_error: false
+        covers:
+          - DEL-TAGS
+      - name: tag_bad_char
+        function: tag_value_ok
+        args:
+          - S1/a$b
+        expected: false
+        expect_error: false
+        covers:
+          - DEL-TAGS
+      - name: report_line_basic
+        function: report_line
+        args:
+          - incoming/S1/a.txt
+          - S1/a.txt
+          - DEFAULT
+        expected: source=incoming/S1/a.txt target=S1/a.txt reason=DEFAULT
+        expect_error: false
+        covers:
+          - R-RUN-9
+  clauses:
+    - id: R-DST-1
+      component: destination
+      text: The target is decided from the folder path only, and the file name is always kept.
+      source_quote: Decide the target using the folder path only (the path without the file name). The file name is 
+        always kept.
+      kind: stated
+    - id: R-DST-2
+      component: destination
+      text: Data format = adam if the folder path contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise raw 
+        if it contains raw/.
+      source_quote: 'Data format from the folder path: adam if it contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise
+        raw if it contains raw/'
+      kind: stated
+    - id: R-DST-3
+      component: destination
+      text: restricted_raw/ counts as raw.
+      source_quote: (so restricted_raw/ also counts as raw)
+      kind: stated
+    - id: R-DST-4
+      component: destination
+      text: For anonymised folders the data format comes from _adam_, _sdtm_, _raw_ or _restricted_raw_ (= raw).
+      source_quote: For anonymised folders the data format comes from _adam_, _sdtm_, _raw_ or _restricted_raw_ (= raw).
+      kind: stated
+    - id: R-DST-5
+      component: destination
+      text: Last folder = the folder that directly contains the file.
+      source_quote: '"Last folder" = the folder that directly contains the file.'
+      kind: stated
+    - id: R-DST-6
+      component: destination
+      text: Every rule is checked, and exactly one rule must match.
+      source_quote: Check every rule below. Exactly one rule must match.
+      kind: stated
+    - id: R-DST-7
+      component: destination
+      text: CDAP matches when the path contains /data_reuse/ and /cdap_ and a data format.
+      source_quote: 'CDAP: path contains /data_reuse/ and /cdap_ and a data format.'
+      kind: stated
+    - id: R-DST-8
+      component: destination
+      text: CDAP with /cdap_csr → {study}/extended_primary_use/primary/{format}/{file}.
+      source_quote: contains /cdap_csr → {study}/extended_primary_use/primary/{format}/{file}
+      kind: stated
+    - id: R-DST-9
+      component: destination
+      text: CDAP with a last folder containing _ia → third '_' part written as ia_+rest → 
+        {study}/extended_primary_use/interim/{format}/ia_300/{file}.
+      source_quote: else if the last folder contains _ia → take the third "_" part of the last folder 
+        (cdap_20210617_ia300 → ia300) and write it as ia_ + the rest (ia_300)
+      kind: stated
+    - id: R-DST-10
+      component: destination
+      text: CDAP interim with fewer than 3 '_' parts in the last folder → error.
+      source_quote: fewer than 3 parts → error
+      kind: stated
+    - id: R-DST-11
+      component: destination
+      text: Other CDAP → second '_' part of the last folder → {study}/extended_primary_use/other/{format}/{part}/{file}.
+      source_quote: else → second "_" part of the last folder (cdap_20210617 → 20210617)
+      kind: stated
+    - id: R-DST-12
+      component: destination
+      text: CDAP other with fewer than 2 '_' parts → error.
+      source_quote: fewer than 2 parts → error
+      kind: stated
+    - id: R-DST-13
+      component: destination
+      text: 'IDAP: /data_reuse/ and /idap and a data format → {study}/internal_reuse/{format}/{last folder}/{file}.'
+      source_quote: 'IDAP: path contains /data_reuse/ and /idap and a data format → {study}/internal_reuse/{format}/{last
+        folder}/{file}'
+      kind: stated
+    - id: R-DST-14
+      component: destination
+      text: 'MED: /data_reuse/ and /med and a data format → {study}/external_reuse/{format}/{last folder}/{file}.'
+      source_quote: 'MED: path contains /data_reuse/ and /med and a data format → {study}/external_reuse/{format}/{last folder}/{file}'
+      kind: stated
+    - id: R-DST-15
+      component: destination
+      text: ANON matches when the path contains _anon_ and an underscore data format.
+      source_quote: 'ANON: path contains _anon_ and an underscore data format.'
+      kind: stated
+    - id: R-DST-16
+      component: destination
+      text: ANON with _anon_csr → {study}/anonymised/primary/{format}/{file}.
+      source_quote: contains _anon_csr → {study}/anonymised/primary/{format}/{file}
+      kind: stated
+    - id: R-DST-17
+      component: destination
+      text: ANON whose last '_' part of the last folder starts with lowercase ia (case-sensitive) → 
+        {study}/anonymised/interim/{format}/ia_{rest}/{file}.
+      source_quote: starts with lowercase ia, case-sensitive (ia500) → {study}/anonymised/interim/{format}/ia_500/{file}
+      kind: stated
+    - id: R-DST-18
+      component: destination
+      text: Other ANON → {study}/anonymised/other/{format}/{last part}/{file}.
+      source_quote: otherwise (20220120) → {study}/anonymised/other/{format}/20220120/{file}
+      kind: stated
+    - id: R-DST-19
+      component: destination
+      text: CDAR matches when the path contains /cdar/ and a data format.
+      source_quote: 'CDAR: path contains /cdar/ and a data format.'
+      kind: stated
+    - id: R-DST-20
+      component: destination
+      text: Reporting level = the folder right after the folder named 'ar' (case-insensitive, compared in lowercase).
+      source_quote: reporting level = the folder right after the folder named "ar" (case-insensitive, compared in 
+        lowercase)
+      kind: stated
+    - id: R-DST-21
+      component: destination
+      text: No 'ar' folder, or a reporting level of adam, sdtm or raw → error.
+      source_quote: no "ar" folder, or the reporting level is adam, sdtm or raw → error
+      kind: stated
+    - id: R-DST-22
+      component: destination
+      text: Reporting level csr → {study}/primary/complete/{format}/{file}.
+      source_quote: csr → {study}/primary/complete/{format}/{file}
+      kind: stated
+    - id: R-DST-23
+      component: destination
+      text: Reporting level starting with ia → remove 'ia' and any leading '_', add 'ia_' → 
+        {study}/primary/interim/{format}/{ia_x}/{file}.
+      source_quote: starts with ia → remove "ia" and any leading "_", then add "ia_" (ia1 → ia_1, ia_psc → ia_psc)
+      kind: stated
+    - id: R-DST-24
+      component: destination
+      text: Any other reporting level → {study}/primary/other/{format}/{level}/{file}.
+      source_quote: anything else (bdr200) → {study}/primary/other/{format}/bdr200/{file}
+      kind: stated
+    - id: R-DST-25
+      component: destination
+      text: 'OTHERS: /data_reuse/ and a data format and none of /med, /cdap, /idap, /anon, _anon_ → {study}/other/{format}/{last
+        folder}/{file}.'
+      source_quote: 'OTHERS: path contains /data_reuse/ and a data format, and none of /med, /cdap, /idap, /anon, _anon_'
+      kind: stated
+    - id: R-DST-26
+      component: destination
+      text: 'DEFAULT: a path with none of /data_reuse/, _anon_, /cdar/ → the same path with incoming/ removed.'
+      source_quote: 'DEFAULT (pass-through): path has none of /data_reuse/, _anon_, /cdar/ → the same path (incoming/ removed)'
+      kind: stated
+    - id: R-DST-27
+      component: destination
+      text: No match, more than one match, or a target that cannot be worked out → error/{path without incoming/}.
+      source_quote: No rule matches, more than one rule matches, or the target cannot be worked out → move the file to 
+        error/{path without incoming/}.
+      kind: stated
+    - id: R-DST-28
+      component: destination
+      text: A file is never dropped.
+      source_quote: Never drop a file.
+      kind: stated
+    - id: R-DST-29
+      component: destination
+      text: Path-contains checks run on the folder path relative to incoming/, wrapped in leading and trailing '/'.
+      source_quote: ''
+      kind: assumed
+    - id: R-RUN-1
+      component: run
+      text: 'Files are moved, not copied: server-side copy that supports files larger than 5 GiB.'
+      source_quote: 'Move, not copy: copy server-side (files can be larger than 5 GiB)'
+      kind: stated
+    - id: R-RUN-2
+      component: run
+      text: After the copy, the pipeline confirms the target exists.
+      source_quote: confirm the target exists
+      kind: stated
+    - id: R-RUN-3
+      component: run
+      text: After the check, the source is deleted from incoming/.
+      source_quote: then delete the source from incoming/
+      kind: stated
+    - id: R-RUN-4
+      component: run
+      text: If the copy or the check fails, the source stays in incoming/ and that file fails.
+      source_quote: If the copy or the check fails, leave the source in incoming/ so the next run retries it; that file 
+        fails.
+      kind: stated
+    - id: R-RUN-5
+      component: run
+      text: An existing object at the target is overwritten.
+      source_quote: An existing object at the target is overwritten.
+      kind: stated
+    - id: R-RUN-6
+      component: run
+      text: 'After a successful move, all tags on the target are replaced by exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      source_quote: 'After a successful move, replace all tags on the target with exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      kind: stated
+    - id: R-RUN-7
+      component: run
+      text: A tagging failure is only a warning, and the file still counts as moved.
+      source_quote: A tagging failure is only a warning (the file still counts as moved).
+      kind: stated
+    - id: R-RUN-8
+      component: run
+      text: Files moved to error/ get no tag change.
+      source_quote: Files moved to error/ get no tag change.
+      kind: stated
+    - id: R-RUN-9
+      component: run
+      text: 'The pipeline reports one line per file: source, target, and rule or error reason.'
+      source_quote: 'Report one line per file: source, target, rule or error reason.'
+      kind: stated
+    - id: R-RUN-10
+      component: run
+      text: The run fails only if a copy, check or delete failed.
+      source_quote: The run fails only if a copy, check or delete failed.
+      kind: stated
+    - id: R-RUN-11
+      component: run
+      text: Moving files to error/ does not fail the run.
+      source_quote: Moving files to error/ does not fail the run.
+      kind: stated
+    - id: R-RUN-12
+      component: run
+      text: Moves to error/ also use copy, check and delete.
+      source_quote: ''
+      kind: assumed
+planned_by:
+  task: plan_component
+  skill: planning-pipeline-components
+  skill_sha256: 7690c7e461337894d9a974196cfce1179f75f9cfb20f43d663bc098712022fc0
+  prompt_sha256: 2f79e08b3e24de7942121e76cbd56b1c25fb399412f7c3f8553359206ea3d506
+  schema_sha256: c3d7058e5b4114f9849b1490c0b485f430fd516d68e4f0752893108ce8bc016e
+  model: claude-opus-5-5
+  prompt_version: '1'
+tests_written_by:
+  route_by_folder_rules:
+    task: write_step_tests
+    skill: writing-step-tests
+    skill_sha256: 3a609951accc5dbcd8c79526c1a24efd822cbc5df6b906953a5916f90d486233
+    prompt_sha256: 659205da90d4ca9a73df0790d2783c4da815f852b5d9fd2d60c735c35d2a68e6
+    schema_sha256: 6173679fc8b8e8bc7f779d1b79573a026f3cdb2de2754eda00e4388367818a0f
+    model: claude-sonnet-5-5
+    prompt_version: '1'
+  move_and_tag:
+    task: write_step_tests
+    skill: writing-step-tests
+    skill_sha256: 3a609951accc5dbcd8c79526c1a24efd822cbc5df6b906953a5916f90d486233
+    prompt_sha256: 7e0afefd0934db957fafd99df15ec2231c76200703ec76154c8d5df326ef0996
+    schema_sha256: 6173679fc8b8e8bc7f779d1b79573a026f3cdb2de2754eda00e4388367818a0f
+    model: claude-sonnet-5-5
+    prompt_version: '1'
+simulation:
+  - example: cdar_interim
+    status: needs_code
+    detail: stops at custom step 'route_by_folder_rules' until its code exists
+    output:
+  - example: cdap_interim
+    status: needs_code
+    detail: stops at custom step 'route_by_folder_rules' until its code exists
+    output:
+  - example: anon_other
+    status: needs_code
+    detail: stops at custom step 'route_by_folder_rules' until its code exists
+    output:
+  - example: default_passthrough
+    status: needs_code
+    detail: stops at custom step 'route_by_folder_rules' until its code exists
+    output:
+  - example: two_rules_match_goes_to_error
+    status: needs_code
+    detail: stops at custom step 'route_by_folder_rules' until its code exists
+    output:
+plan_digest: a9198677a7595b7f43ef758ea7879339f27c4fed91f2cf6d89ce56b9a55dc88e
+issues: []
+code:
+  file: sas_study_bucket.py
+  plan_digest: a9198677a7595b7f43ef758ea7879339f27c4fed91f2cf6d89ce56b9a55dc88e
+  generated_by:
+    route_by_folder_rules:
+      task: write_custom_step
+      skill: writing-custom-step-code
+      skill_sha256: a25c6e64d500004dd112f9882097e73383aad328cdfcb55e3ee5af6ed8d54725
+      prompt_sha256: 89da889d2a5273682a0deca54fdda4de8eab3df033abe5dd7de4e071d958285e
+      schema_sha256: fef2048bb8578e98536fe2f52b270c528466eb2b3fec04dda461adc3a6d98b1b
+      model: claude-opus-5-5
+      prompt_version: '1'
+      explanation: "The code is built from the planned helpers, each following its pseudocode. split_path makes the folders,
+        the file name and the folder path wrapped in '/'. data_format and underscore_format pick the format in priority order.
+        matching_rules checks all seven rules and returns every match in rule order. ia_label, target_cdap, target_anon and
+        target_cdar build the keys, and raise ValueError with the exact planned messages when a key can't be worked out. decide_route
+        returns error/{path} when no rule matches, when several match, when a builder raises ValueError (reason 'error: {rule}:
+        {e}'), or when the key is longer than 1024 bytes. Otherwise it returns (key, rule). A dict of lambdas picks the builder,
+        which keeps complexity at 8 or below. The step goes through layout['files'] and sets a key only where the key is missing
+        or None, so keys placed by earlier steps stay. It logs one line per file (path, key, label) and returns the layout.
+        It never sets a key to None.\n\nResults from try_code: all 5 examples pass, all 8 step cases pass, and every function
+        case passes except route_key_too_long (see disagreement). quality_check found no problems."
+      attempts:
+        - attempt: 1
+          passed: false
+          failures: 1
+          quality_problems: 0
+      kept_attempt: 1
+      disagreement: "Function case route_key_too_long (decide_route) fails, and the test looks wrong. The pseudocode (step
+        1, err = 'error/' + path, and step 8) and clause R-DST-27 say the key for an over-long target is 'error/' + the input
+        path, unchanged. The input path in the case has 11 folders of 'a's after 'S1/'. The expected key has only 10, so it
+        is 110 characters shorter than 'error/' + input (1155 characters of JSON expected, 1265 produced, first difference
+        just before the last '/f.txt'). The reason 'error: key longer than 1024 bytes' does match. The code follows the pseudocode
+        and returns 'error/' + the full input path. The fix is to correct the case's expected key: 'error/' + the same 11-folder
+        path, best written with $concat/$repeat."
+    move_and_tag:
+      task: write_custom_step
+      skill: writing-custom-step-code
+      skill_sha256: a25c6e64d500004dd112f9882097e73383aad328cdfcb55e3ee5af6ed8d54725
+      prompt_sha256: 38c16c944ce6441b00997342eac74e68ecfc8a676f1a1a22219c27840de54e08
+      schema_sha256: fef2048bb8578e98536fe2f52b270c528466eb2b3fec04dda461adc3a6d98b1b
+      model: claude-opus-5-5
+      prompt_version: '1'
+      explanation: "The code is ready except for one function case, `tag_len_256_ok`, which fails. The test string is the
+        wrong length; the code follows the pseudocode (see disagreement). Everything else passes: all 8 step cases, the other
+        6 function cases and all 5 component examples. The quality check is clean.\n\nHow the code follows the pseudocode:\n\
+        - **Results and route label (steps 1–2):** each transfer always produces exactly one result. The rule name or error
+        reason comes from `decide_route(path)[1]`, which is the first step's helper in the same generated file. Whether the
+        target is under error/ comes from `is_error_target`.\n- **Copy settings (step 3):** `ExtraArgs` holds `CopySourceIfMatch`
+        only when the transfer has an etag. It holds `ServerSideEncryption` and `SSEKMSKeyId` only when `ctx['delivery']`
+        sets them. There is no existence check, so an existing target is overwritten.\n- **Copy, check and delete (steps 4–6):**
+        one try block runs them in order and records which stage it has reached:\n  - a managed `aws.s3_destination.copy(...,
+        SourceClient=aws.s3_source)`, which goes multipart for large files;\n  - a `head_object` size check, which fails with
+        'check failed: size mismatch';\n  - `delete_object` on the source, which only runs after the size check passes.\n\
+        - **Error messages:** an S3 error (`ClientError` or `BotoCoreError`) gives 'copy failed: <err>', 'check failed: <err>'
+        or 'delete failed: <err> (target copied)', depending on the stage. The status is then 'failed', the failure is logged
+        and the next file goes ahead. A failed copy or check leaves the source in place.\n- **Delete marker:** if the delete
+        returns a delete marker, ' (delete marker)' is added to the detail.\n- **Tagging (step 7):** only study targets are
+        tagged.\n  - If `tag_value_ok(path)` is true, `put_object_tagging` replaces all tags with ADDITIONAL_TAG=path. If
+        that call fails, a warning is logged and noted in the detail.\n  - If the value isn't allowed, the warning is 'tag
+        value not allowed'.\n  - error/ targets keep their tags unchanged.\n- **Status and report (steps 8–9):** the status
+        is 'moved_to_error' for error/ targets and 'moved' otherwise. The detail is the label, then the delete-marker note,
+        then any tag warning. `report_line` builds the log line, and each result is `{path, key, status, detail}`.\n\nChecks
+        that passed: the 5 component examples, the 8 step cases (overwrite and retag, error/ target keeps its tags, copy fails,
+        size mismatch, delete fails, tagging fails, tag value not allowed, one failure doesn't stop the next file) and 6 of
+        the 7 function cases. To keep complexity at 8 or below, the three S3 calls share one try block that tracks the stage;
+        behaviour is the same as the pseudocode."
+      attempts:
+        - attempt: 1
+          passed: false
+          failures: 1
+          quality_problems: 0
+      kept_attempt: 1
+      disagreement: "Function case `tag_len_256_ok` (tag_value_ok): the pseudocode says the check is `len(value) <= 256`,
+        and the case expects true. But its argument is a typed-out string of 286 'a' characters, not 256. I confirmed this
+        with a temporary check that raised the length: it reported 286. `tag_len_257_bad` is also 286 characters long, so
+        it passes only because it expects false. The code follows the pseudocode, matching S3's 256-character limit, so `tag_len_256_ok`
+        fails. The test should use {\"$repeat\": \"a\", \"times\": 256} (and {\"$repeat\": \"a\", \"times\": 257} for `tag_len_257_bad`)."
+  generated_at: '2026-10-21T17:05:49+00:00'
+  code_policy: open
+  sha256: ff92b3e23f05ec4849c5a546b13c97b02bc81497eb6e9c868749c82b5e752e80
+  problems: []
+  tests:
+    - example: cdar_interim
+      status: pass
+      detail: matches the expected output
+    - example: cdap_interim
+      status: pass
+      detail: matches the expected output
+    - example: anon_other
+      status: pass
+      detail: matches the expected output
+    - example: default_passthrough
+      status: pass
+      detail: matches the expected output
+    - example: two_rules_match_goes_to_error
+      status: pass
+      detail: matches the expected output
+    - case: cdar_interim
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: cdap_interim
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: anon_other
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: default_passthrough
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: two_rules_match_goes_to_error
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: root_file
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: already_placed_kept
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: idap_med_others
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: move_study_target_overwrites_and_retags
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: move_to_error_keeps_tags
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: copy_fails_source_kept
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: size_mismatch_fails_source_kept
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: delete_fails_target_stays
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: tagging_failure_is_warning
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: invalid_tag_value_still_moved
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: partial_failure_continues
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:split_basic
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:split_root
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:fmt_priority
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:fmt_sdtm_over_raw
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:fmt_restricted_raw
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:fmt_none
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ufmt_sdtm
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ufmt_restricted_raw
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ufmt_none
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:rules_cdar_others
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:rules_none_no_format
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:rules_root_default
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:rules_cdap
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:rules_anon
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ia_plain
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ia_underscore
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ia_uppercase
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:ia_empty
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: empty interim label'
+    - case: fn:cdap_csr
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdap_interim
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdap_interim_short
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: CDAP interim: fewer than 3 parts in last folder'
+    - case: fn:cdap_other
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdap_other_short
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: CDAP other: fewer than 2 parts in last folder'
+    - case: fn:anon_csr
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:anon_interim
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:anon_uppercase_ia_is_other
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:anon_empty_part
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: ANON: empty last part'
+    - case: fn:cdar_csr
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdar_ia_underscore
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdar_ia1
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdar_other
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:cdar_no_ar
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: CDAR: no reporting level after ar'
+    - case: fn:cdar_ar_last
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: CDAR: no reporting level after ar'
+    - case: fn:cdar_level_sdtm_upper
+      step: route_by_folder_rules
+      status: pass
+      detail: 'ValueError: CDAR: reporting level is sdtm'
+    - case: fn:route_cdap_csr
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_restricted_raw_others
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_study_case_kept
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_no_rule
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_several
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_cdap_error
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_cdar_level_error
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_default_root
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:route_special_chars_kept
+      step: route_by_folder_rules
+      status: pass
+      detail: matches the expected output
+    - case: fn:error_prefix_true
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:study_key_false
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:tag_ok_path
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:tag_len_257_bad
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:tag_bad_char
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+    - case: fn:report_line_basic
+      step: move_and_tag
+      status: pass
+      detail: matches the expected output
+  tested_at: '2026-10-21T17:10:57+00:00'
+  quality:
+    ok: true
+    problems: []
+    skipped: []
+deferred_cases:
+  route_by_folder_rules:
+    fn:route_key_too_long:
+      reason: deferred after it failed
+      by: Studio user
+      at: '2026-10-21T17:09:38+00:00'
+  move_and_tag:
+    fn:tag_len_256_ok:
+      reason: deferred after it failed
+      by: Studio user
+      at: '2026-10-21T17:09:39+00:00'

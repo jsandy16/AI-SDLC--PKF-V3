@@ -1,75 +1,234 @@
-# sources/sas_incoming.lock.yaml — plan, step tests, simulation, code tests and approvals.
-# Written by `pkf plan/code/test/approve-…`; approvals are a person's decision. Do not edit by hand.
+# sources/sas_incoming.lock.yaml — plan, step tests, simulation and code tests.
+# Written by `pkf plan/code/test` and `pkf create`. Do not edit by hand.
 lock_version: 2
 kind: source
 name: sas_incoming
-requirement_sha256: 065f305546921b6eb019361bd03021874a0f4103caf8927f1f0e1d18c7eca4f4
+requirement_sha256: 87215542a7ace73826df5e73281b04d2b869ad50692d1e851c35ee27419c7aa8
 plan:
-  summary: Lists every object under incoming/ in the SAS bucket. It keeps only files that sit inside a study folder and 
-    whose name has a "." extension, which also drops folder markers. It then makes one package per file and sets 
-    package_key to the path relative to incoming/.
+  summary: sas_incoming lists every object under incoming/ in the environment's SAS S3 bucket (eu-north-1), at any 
+    depth, with paths relative to incoming/. It silently drops folder markers, files that sit directly under incoming/, 
+    and files with no '.' extension. Every remaining file becomes its own package, keyed by its relative path in the 
+    variable file_key. Each package carries the S3 reference (root incoming/ + path) that the destination's custom 
+    delivery uses for the server-side move and the tag.
+  why: "Catalogue steps cover the whole source: list finds the objects, select drops the skipped ones, and split makes one
+    package per file. No custom step is needed. The R-RUN clauses (move, check, delete, tag, report, run outcome) are carried
+    out by the destination's single custom_delivery step, because a source catalogue has no delivery operation. They are cited
+    here on the source steps that make them possible: list keeps the S3 reference and size each move needs, and split makes
+    each file an independent package. That package is the unit that succeeds or fails on its own, gets its own report line,
+    and carries file_key as the ADDITIONAL_TAG value."
   steps:
     - id: list_incoming
       op: list
-      title: List all objects under incoming/
+      title: List every object under incoming/ at any depth
       params:
         root: incoming/
-    - id: keep_study_files_with_extension
+      unit:
+        requires: The S3 source connection (the environment's SAS bucket in eu-north-1, the same bucket as the 
+          destination) is set in settings, not in the plan.
+        guarantees: One group holds every object under incoming/, with all pages listed. Each file has root 'incoming/',
+          path relative to incoming/, size and mtime. root+path is the exact source key. The destination's delivery uses
+          it for the server-side managed copy (including objects over 5 GiB), for the delete after the existence check, 
+          and for leaving the source in place when the copy or check fails. Nothing is staged or opened, because S3→S3 
+          direct delivery passes references.
+        clauses:
+          - R-SRC-1
+          - R-SRC-2
+          - R-SRC-3
+          - R-SRC-4
+          - R-RUN-1
+          - R-RUN-2
+          - R-RUN-3
+          - R-RUN-4
+          - R-RUN-5
+          - R-RUN-12
+    - id: skip_unwanted
       op: select
-      title: Skip folder markers, files outside a study folder, and files with no extension
+      title: Silently skip folder markers, top-level files and files without an extension
       params:
-        regex: ^[^/]+/(?:[^/]+/)*[^/]+\.[^/]*$
-    - id: split_per_file
+        regex: ^[^/]+/(?:[^/]+/)*[^/]*\.[^/]*$
+      unit:
+        requires: 'list_incoming has run: file paths are relative to incoming/.'
+        guarantees: The only files left are inside at least one study folder and have a '.' in their name. Keys ending 
+          in '/', files directly under incoming/ and names with no extension are dropped. They are never packaged, 
+          moved, tagged or reported. Zero-byte files that pass these rules are kept.
+        clauses:
+          - R-SRC-5
+          - R-SRC-6
+          - R-SRC-7
+          - R-SRC-8
+          - R-RUN-8
+    - id: one_package_per_file
       op: split
-      title: One package per file, key = relative path
+      title: Make each remaining file its own package
       params:
         by: regex
-        regex: ^(.+)$
-        var: package_key
+        regex: ^(?P<key>.+)$
+        var: file_key
+      unit:
+        requires: 'skip_unwanted has run: only eligible files are left.'
+        guarantees: "There is one group per file, with vars.file_key set to the file's path relative to incoming/. That is
+          the original path without incoming/, which delivery writes as the single ADDITIONAL_TAG. The study ID is file_key's
+          first segment, kept exactly as written. Each file succeeds or fails on its own: a failed copy, check or delete fails
+          only that package, and that makes the run fail. Moves to error/ and tagging warnings do not fail it. The report
+          has one record per file. If nothing is left, there are zero packages and the run succeeds."
+        clauses:
+          - R-SRC-9
+          - R-SRC-10
+          - R-RUN-6
+          - R-RUN-7
+          - R-RUN-9
+          - R-RUN-10
+          - R-RUN-11
   assumptions:
-    - The bucket and region (eu-north-1) come from the component settings, not from a step.
-    - Folder markers are listed with paths ending in '/', so the regex, which needs a file name after the last '/', 
-      drops them.
-    - A file has an extension when its name (the part after the last '/') contains a '.'. Names that start or end with 
-      '.' count as having one.
-    - The study ID is the first folder of the relative path. It is kept as written and needs no step.
-    - The regex split is matched against the path relative to incoming/, so package_key equals that path.
-    - The regex is matched against the whole relative path.
+    - The R-RUN clauses (server-side copy above 5 GiB, existence check, delete, overwrite, tag replacement, warning-only
+      tagging, no tags in error/, report lines, run outcome) are carried out by the destination's custom_delivery step. 
+      The source steps cite them because they provide the per-file S3 reference, size and file_key that delivery needs, 
+      and the one-file-per-package isolation.
+    - A name 'has an extension' when its last path segment contains a '.' anywhere. Dotfiles like '.keep' and names 
+      ending in '.' therefore count as having one.
+    - Zero-byte files inside a study folder that have an extension are kept, like any other file.
+    - The bucket name comes from the per-environment S3 connection settings and is never written in the plan.
   ambiguities: []
   step_tests: {}
+  function_tests: {}
+  clauses:
+    - id: R-SRC-1
+      component: source
+      text: The source is the environment's SAS S3 bucket in region eu-north-1.
+      source_quote: The environment's SAS S3 bucket in region eu-north-1 (set in the source and destination settings).
+      kind: stated
+    - id: R-SRC-2
+      component: source
+      text: Source and destination are the same bucket.
+      source_quote: Source and destination are the same bucket.
+      kind: stated
+    - id: R-SRC-3
+      component: source
+      text: Every object under the prefix incoming/ is listed, at any depth.
+      source_quote: List every object under the prefix incoming/, at any depth.
+      kind: stated
+    - id: R-SRC-4
+      component: source
+      text: Paths are taken relative to incoming/.
+      source_quote: Paths are taken relative to incoming/.
+      kind: stated
+    - id: R-SRC-5
+      component: source
+      text: Folder markers (keys ending in '/') are skipped silently.
+      source_quote: folder markers (keys ending in "/")
+      kind: stated
+    - id: R-SRC-6
+      component: source
+      text: Files directly under incoming/ with no study folder are skipped silently.
+      source_quote: files directly under incoming/ with no study folder (e.g. incoming/readme.txt)
+      kind: stated
+    - id: R-SRC-7
+      component: source
+      text: Files whose name has no '.' extension are skipped silently.
+      source_quote: files whose name has no "." extension
+      kind: stated
+    - id: R-SRC-8
+      component: source
+      text: Skipped files are not moved and not reported.
+      source_quote: Skip silently (do not move, do not report)
+      kind: stated
+    - id: R-SRC-9
+      component: source
+      text: Each remaining file is its own package, so a problem with one file does not stop the others.
+      source_quote: Each remaining file is its own package, so a problem with one file does not stop the others.
+      kind: stated
+    - id: R-SRC-10
+      component: source
+      text: Study ID = the first folder after incoming/, used exactly as written.
+      source_quote: Study ID = the first folder after incoming/, used exactly as written (case and hyphens kept).
+      kind: stated
+    - id: R-RUN-1
+      component: run
+      text: 'Files are moved, not copied: server-side copy that supports files larger than 5 GiB.'
+      source_quote: 'Move, not copy: copy server-side (files can be larger than 5 GiB)'
+      kind: stated
+    - id: R-RUN-2
+      component: run
+      text: After the copy, the pipeline confirms the target exists.
+      source_quote: confirm the target exists
+      kind: stated
+    - id: R-RUN-3
+      component: run
+      text: After the check, the source is deleted from incoming/.
+      source_quote: then delete the source from incoming/
+      kind: stated
+    - id: R-RUN-4
+      component: run
+      text: If the copy or the check fails, the source stays in incoming/ and that file fails.
+      source_quote: If the copy or the check fails, leave the source in incoming/ so the next run retries it; that file 
+        fails.
+      kind: stated
+    - id: R-RUN-5
+      component: run
+      text: An existing object at the target is overwritten.
+      source_quote: An existing object at the target is overwritten.
+      kind: stated
+    - id: R-RUN-6
+      component: run
+      text: 'After a successful move, all tags on the target are replaced by exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      source_quote: 'After a successful move, replace all tags on the target with exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      kind: stated
+    - id: R-RUN-7
+      component: run
+      text: A tagging failure is only a warning, and the file still counts as moved.
+      source_quote: A tagging failure is only a warning (the file still counts as moved).
+      kind: stated
+    - id: R-RUN-8
+      component: run
+      text: Files moved to error/ get no tag change.
+      source_quote: Files moved to error/ get no tag change.
+      kind: stated
+    - id: R-RUN-9
+      component: run
+      text: 'The pipeline reports one line per file: source, target, and rule or error reason.'
+      source_quote: 'Report one line per file: source, target, rule or error reason.'
+      kind: stated
+    - id: R-RUN-10
+      component: run
+      text: The run fails only if a copy, check or delete failed.
+      source_quote: The run fails only if a copy, check or delete failed.
+      kind: stated
+    - id: R-RUN-11
+      component: run
+      text: Moving files to error/ does not fail the run.
+      source_quote: Moving files to error/ does not fail the run.
+      kind: stated
+    - id: R-RUN-12
+      component: run
+      text: Moves to error/ also use copy, check and delete.
+      source_quote: ''
+      kind: assumed
 planned_by:
   task: plan_component
   skill: planning-pipeline-components
   skill_sha256: 7690c7e461337894d9a974196cfce1179f75f9cfb20f43d663bc098712022fc0
-  prompt_sha256: 6b32c5742cba9a47a20c0c59e30f3d4780f1ac90e15cce136a66df6851076bbb
-  schema_sha256: 6c2d314e688ab2eb8b56d8679ba6c23f31b68deb03072c6dc1e898a70263ef01
-  model: claude-sonnet-5-5
+  prompt_sha256: 96e0999a95a7e3a76c86bac6ac8f80709fd90f2753d0dc9cc0c3398ee8b86df2
+  schema_sha256: c3d7058e5b4114f9849b1490c0b485f430fd516d68e4f0752893108ce8bc016e
+  model: claude-opus-5-5
   prompt_version: '1'
 tests_written_by: {}
 simulation:
-  - example: normal_files_one_package_each
+  - example: normal_files
     status: pass
     detail: matches the expected output
     output:
-      -   - 04-3077/root/data_reuse/d525/04-3077/med/adam/prod/data/adae.sas7bdat
-      -   - d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat
-  - example: skips_marker_no_study_folder_no_extension
+      -   - 04-3077/x/b.sas7bdat
+      -   - S1/root/cdar/d000/S1/ar/csr/adam/dev/data/a.sas7bdat
+  - example: skips
     status: pass
     detail: matches the expected output
     output:
-      -   - ABCD-0000-0000/Export_Inventory_usr00001_2024-05-29_08-39-32.pdf
-  - example: empty_incoming
+      -   - S1/data/ok.pdf
+  - example: nothing_to_do
     status: pass
     detail: matches the expected output
     output: []
-plan_digest: c24e76b97bc9a75f1ba6554b9a4641eeba786a18fd3150df7c2e93460c4b7e92
+plan_digest: e004962bab60418dffc20a44fe2f780873ec913c4fb56a94ef6c1b9d93644d50
 issues: []
-plan_approval:
-  by: '@jsandy16'
-  identity: github:jsandy16#195818633
-  at: '2026-10-19T06:39:22+00:00'
-  digest: c24e76b97bc9a75f1ba6554b9a4641eeba786a18fd3150df7c2e93460c4b7e92
-  evidence:
-    url: https://github.com/jsandy16/AI-SDLC--PKF-V3/pull/14#issuecomment-6261285299
-    github_id: 195818633
-    head_sha: f5f2d6743bdc03514440717b7d753ac3c2bdb593

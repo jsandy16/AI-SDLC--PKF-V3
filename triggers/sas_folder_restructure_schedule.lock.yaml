@@ -1,0 +1,164 @@
+# triggers/sas_folder_restructure_schedule.lock.yaml — plan, step tests, simulation and code tests.
+# Written by `pkf plan/code/test` and `pkf create`. Do not edit by hand.
+lock_version: 2
+kind: trigger
+name: sas_folder_restructure_schedule
+requirement_sha256: 3e21fc4c650702bf97bb9de2c305f22a25783057470f8bd2fc6e04e096def691
+plan:
+  summary: The trigger starts the pipeline on the cron schedule "*/45 * * * *", from 2026-10-01. Each scheduled run 
+    produces exactly one event with no messages, no objects and no variables. That event starts one run, which lists 
+    every file under incoming/ and moves each one. The move itself (copy, check, delete, tags, error/ handling, report) 
+    is done by the source and destination components, not by the trigger.
+  why: A scheduled trigger needs only one receive step. The catalogue `schedule` step produces exactly one event per 
+    run, which is what the requirement and the scheduled_run example ask for. No parsing, filtering or grouping is 
+    needed because there are no messages. The single event goes to the source's planning step, which finds the files 
+    under incoming/. The destination's delivery step then carries out the R-RUN clauses. Those clauses are cited here 
+    only because this trigger event is what starts each run that applies them.
+  steps:
+    - id: scheduled_run
+      op: schedule
+      title: Start one run every 45 minutes from 2026-10-01; each run moves every file under incoming/
+      params: {}
+      unit:
+        requires: 'The scheduler started the run: cron "*/45 * * * *", start date 2026-10-01, 2 retries 2 minutes apart, at
+          most one active run. There are no messages.'
+        guarantees: "Exactly one event: message_ids empty, data None, objects empty, vars empty. It goes to the source's planning
+          step, which lists every file under incoming/ (R-TRG-2). The destination's delivery step then moves each file (R-RUN-1..12):
+          server-side copy that supports files over 5 GiB, overwriting any existing target; a check that the target exists;
+          deletion of the source; replacement of all target tags with one ADDITIONAL_TAG (a tagging failure is only a warning;
+          files moved to error/ get no tag change); copy/check/delete also for moves to error/; one report line per file;
+          and the run fails only if a copy, check or delete failed."
+        clauses:
+          - R-TRG-1
+          - R-TRG-2
+          - R-TRG-3
+          - R-TRG-4
+          - R-TRG-5
+          - R-RUN-1
+          - R-RUN-2
+          - R-RUN-3
+          - R-RUN-4
+          - R-RUN-5
+          - R-RUN-6
+          - R-RUN-7
+          - R-RUN-8
+          - R-RUN-9
+          - R-RUN-10
+          - R-RUN-11
+          - R-RUN-12
+  assumptions:
+    - The cron expression, the start date 2026-10-01, the retries (2, 2 minutes apart) and at most one active run are 
+      pipeline/DAG schedule settings. The `schedule` step takes no parameters for them.
+    - The R-RUN clauses and the listing of incoming/ (R-TRG-2) are carried out by the source and destination components.
+      This trigger only provides the one event per run that starts them, so it cites those clauses for coverage.
+    - '"*/45 * * * *" is standard cron, so it fires at minutes 0 and 45 of every hour, not strictly every 45 minutes.'
+  ambiguities: []
+  step_tests: {}
+  function_tests: {}
+  clauses:
+    - id: R-TRG-1
+      component: trigger
+      text: The pipeline runs on the cron schedule "*/45 * * * *", with no events.
+      source_quote: Run on the cron schedule "*/45 * * * *" (no events).
+      kind: stated
+    - id: R-TRG-2
+      component: trigger
+      text: Each run processes every file currently under incoming/.
+      source_quote: Each run processes every file currently under incoming/.
+      kind: stated
+    - id: R-TRG-3
+      component: trigger
+      text: A failed run is retried up to 2 times, 2 minutes apart.
+      source_quote: 'retries: 2 retry_delay_minutes: 2'
+      kind: stated
+    - id: R-TRG-4
+      component: trigger
+      text: The schedule starts on 2026-10-01.
+      source_quote: 'start_date: 2026-10-01'
+      kind: stated
+    - id: R-TRG-5
+      component: trigger
+      text: At most one run is active at a time.
+      source_quote: ''
+      kind: assumed
+    - id: R-RUN-1
+      component: run
+      text: 'Files are moved, not copied: server-side copy that supports files larger than 5 GiB.'
+      source_quote: 'Move, not copy: copy server-side (files can be larger than 5 GiB)'
+      kind: stated
+    - id: R-RUN-2
+      component: run
+      text: After the copy, the pipeline confirms the target exists.
+      source_quote: confirm the target exists
+      kind: stated
+    - id: R-RUN-3
+      component: run
+      text: After the check, the source is deleted from incoming/.
+      source_quote: then delete the source from incoming/
+      kind: stated
+    - id: R-RUN-4
+      component: run
+      text: If the copy or the check fails, the source stays in incoming/ and that file fails.
+      source_quote: If the copy or the check fails, leave the source in incoming/ so the next run retries it; that file 
+        fails.
+      kind: stated
+    - id: R-RUN-5
+      component: run
+      text: An existing object at the target is overwritten.
+      source_quote: An existing object at the target is overwritten.
+      kind: stated
+    - id: R-RUN-6
+      component: run
+      text: 'After a successful move, all tags on the target are replaced by exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      source_quote: 'After a successful move, replace all tags on the target with exactly one tag: ADDITIONAL_TAG = the original
+        path without incoming/.'
+      kind: stated
+    - id: R-RUN-7
+      component: run
+      text: A tagging failure is only a warning, and the file still counts as moved.
+      source_quote: A tagging failure is only a warning (the file still counts as moved).
+      kind: stated
+    - id: R-RUN-8
+      component: run
+      text: Files moved to error/ get no tag change.
+      source_quote: Files moved to error/ get no tag change.
+      kind: stated
+    - id: R-RUN-9
+      component: run
+      text: 'The pipeline reports one line per file: source, target, and rule or error reason.'
+      source_quote: 'Report one line per file: source, target, rule or error reason.'
+      kind: stated
+    - id: R-RUN-10
+      component: run
+      text: The run fails only if a copy, check or delete failed.
+      source_quote: The run fails only if a copy, check or delete failed.
+      kind: stated
+    - id: R-RUN-11
+      component: run
+      text: Moving files to error/ does not fail the run.
+      source_quote: Moving files to error/ does not fail the run.
+      kind: stated
+    - id: R-RUN-12
+      component: run
+      text: Moves to error/ also use copy, check and delete.
+      source_quote: ''
+      kind: assumed
+planned_by:
+  task: plan_component
+  skill: planning-pipeline-components
+  skill_sha256: 7690c7e461337894d9a974196cfce1179f75f9cfb20f43d663bc098712022fc0
+  prompt_sha256: d51d9ab0343588d385ea7ff0c06e8328c59bcd0c14a336d3e3a549880e9614a8
+  schema_sha256: c3d7058e5b4114f9849b1490c0b485f430fd516d68e4f0752893108ce8bc016e
+  model: claude-opus-5-5
+  prompt_version: '1'
+tests_written_by: {}
+simulation:
+  - example: scheduled_run
+    status: pass
+    detail: matches the expected output
+    output:
+      - keys: []
+        vars: {}
+plan_digest: 662163d1161a6c2a524a200328988875529df526d1de83bb20727a61b6f14781
+issues: []
