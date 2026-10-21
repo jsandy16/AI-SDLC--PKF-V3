@@ -1,0 +1,61 @@
+  - id: Q-1
+    text: Are the path-contains checks made on the folder path relative to incoming/, with '/' added at the start and at
+      the end, so a first or last folder can match /adam/ or /data_reuse/?
+    blocking: false
+    proposed_assumption: "Yes: the checks run on '/' + folder path relative to incoming/ + '/'."
+  - id: Q-2
+    text: For rules 1, 2, 3, 5 and 6, does 'a data format' include the underscore formats (_adam_, ...), or only /adam/,
+      /sdtm/ and raw/?
+    blocking: false
+    proposed_assumption: Only the slash-style formats. The underscore formats are used by ANON only.
+  - id: Q-3
+    text: When a folder path contains several underscore formats, which one wins?
+    blocking: false
+    proposed_assumption: 'The same order as the slash format: adam, then sdtm, then raw (including restricted_raw).'
+  - id: Q-4
+    text: "CDAP interim: what happens when the third '_' part does not start with 'ia' (e.g. cdap_2021_x_ia3)?"
+    blocking: false
+    proposed_assumption: A leading 'ia' is replaced by 'ia_'. Otherwise 'ia_' is put in front of the whole third part.
+  - id: Q-5
+    text: Is the CDAP 'last folder contains _ia' check case-sensitive?
+    blocking: false
+    proposed_assumption: Yes, it is case-sensitive (lowercase _ia only).
+  - id: Q-6
+    text: What does 'confirm the target exists' check?
+    blocking: false
+    proposed_assumption: A HEAD on the target succeeds and its size equals the source size.
+  - id: Q-7
+    text: Is the move to error/ also copy, check and delete, so that its failure fails the run?
+    blocking: false
+    proposed_assumption: Yes. It is a move like any other and only skips the tag change.
+  - id: Q-8
+    text: Files moved to error/ get 'no tag change'. Should they keep the source's tags?
+    blocking: false
+    proposed_assumption: Yes. The copy carries the source's tags and metadata over unchanged.
+  - id: Q-9
+    text: S3 tag values are limited to 256 characters and a restricted character set. What happens to longer paths or 
+      paths with other characters?
+    blocking: false
+    proposed_assumption: Tagging is attempted with the full path. A rejection is logged as a warning and the file still 
+      counts as moved.
+  - id: Q-10
+    text: What happens if the delete fails after a successful copy?
+    blocking: false
+    proposed_assumption: The file fails and the run fails. The target stays, and the next run copies the file again 
+      (overwriting the target) and retries the delete.
+  - id: Q-11
+    text: Where should the per-file report go?
+    blocking: false
+    proposed_assumption: 'The run log, one line per file: source, target, rule or error reason, status.'
+  - id: Q-12
+    text: May runs overlap if one run takes longer than 45 minutes?
+    blocking: false
+    proposed_assumption: 'No: at most one run is active at a time.'
+  - id: Q-13
+    text: "'*/45 * * * *' fires at :00 and :45 of each hour, not every 45 minutes. Is that intended?"
+    blocking: false
+    proposed_assumption: Use the cron exactly as written.
+  - id: Q-14
+    text: Does a file name like '.DS_Store' or 'a.' count as having an extension?
+    blocking: false
+    proposed_assumption: Any name that contains a '.' counts as having an extension, so the file is processed.

@@ -1,25 +1,129 @@
 {
   "pipeline": "sas_folder_restructure_wf",
-  "source_file": "pipeline_requirements.txt",
+  "source_file": "requirement",
   "assumptions": [
-    "Format and rule checks run on the folder path with a trailing '/', so a folder named adam/sdtm/raw as the last folder still matches /adam/, /sdtm/ or raw/.",
-    "Pattern checks such as /med, /cdap, /idap, /anon are plain substring matches on the folder path, case-sensitive unless stated.",
-    "For anonymised folders the underscore format is searched in the folder path (any folder), not only the last folder.",
-    "Skipped files (markers, files with no study folder, no extension) are neither moved nor listed in the report.",
-    "Study ID is the first folder under incoming/; the study itself is not validated.",
-    "The data_reuse + cdar example is an error because both CDAR and OTHERS match (two rules).",
-    "The cron */45 fires at minutes 0 and 45 of each hour, so the gap is 45 then 15 minutes; this is taken as intended.",
-    "The bucket name is set per environment; the region eu-north-1 comes from the document."
+    "Path-contains checks (/data_reuse/, /cdap_, /adam/, raw/, _anon_, ...) are made on the folder path relative to incoming/, with a '/' added at the start and at the end, so that a first or last folder can still match.",
+    "Rules 1, 2, 3, 5 and 6 ('a data format') use the slash-style format (/adam/, /sdtm/, raw/). Only rule 4 (ANON) uses the underscore format.",
+    "The underscore format follows the same order as the slash format: _adam_, then _sdtm_, then _raw_ or _restricted_raw_.",
+    "Moving a file to error/ is also a move: server-side copy, check, then delete the source. If that fails, the file fails and so does the run.",
+    "'Confirm the target exists' means a HEAD on the target returns an object of the same size as the source.",
+    "The server-side copy keeps the object's metadata. Files moved to error/ keep the tags copied from the source unchanged ('no tag change').",
+    "If the delete fails after a successful copy, the target stays in place and the source stays in incoming/. The next run copies it again, overwriting the target.",
+    "A file name has an extension when it contains a '.'.",
+    "The 'contains _ia' check on the CDAP last folder is case-sensitive.",
+    "CDAP interim: if the third part starts with 'ia', that 'ia' is replaced by 'ia_'. Otherwise 'ia_' is put in front of the whole part.",
+    "The per-file report goes to the run log.",
+    "Runs do not overlap: at most one run is active at a time.",
+    "The cron '*/45 * * * *' is used as written (it fires at :00 and :45 of each hour)."
   ],
   "open_questions": [],
-  "requirement_sha256": "f8aed93eff8d0b1bb92a498c98beada17708c3e91a199398d229bbb100de50ee",
+  "questions": [
+    {
+      "id": "Q-1",
+      "text": "Are the path-contains checks made on the folder path relative to incoming/, with '/' added at the start and at the end, so a first or last folder can match /adam/ or /data_reuse/?",
+      "blocking": false,
+      "proposed_assumption": "Yes: the checks run on '/' + folder path relative to incoming/ + '/'."
+    },
+    {
+      "id": "Q-2",
+      "text": "For rules 1, 2, 3, 5 and 6, does 'a data format' include the underscore formats (_adam_, ...), or only /adam/, /sdtm/ and raw/?",
+      "blocking": false,
+      "proposed_assumption": "Only the slash-style formats. The underscore formats are used by ANON only."
+    },
+    {
+      "id": "Q-3",
+      "text": "When a folder path contains several underscore formats, which one wins?",
+      "blocking": false,
+      "proposed_assumption": "The same order as the slash format: adam, then sdtm, then raw (including restricted_raw)."
+    },
+    {
+      "id": "Q-4",
+      "text": "CDAP interim: what happens when the third '_' part does not start with 'ia' (e.g. cdap_2021_x_ia3)?",
+      "blocking": false,
+      "proposed_assumption": "A leading 'ia' is replaced by 'ia_'. Otherwise 'ia_' is put in front of the whole third part."
+    },
+    {
+      "id": "Q-5",
+      "text": "Is the CDAP 'last folder contains _ia' check case-sensitive?",
+      "blocking": false,
+      "proposed_assumption": "Yes, it is case-sensitive (lowercase _ia only)."
+    },
+    {
+      "id": "Q-6",
+      "text": "What does 'confirm the target exists' check?",
+      "blocking": false,
+      "proposed_assumption": "A HEAD on the target succeeds and its size equals the source size."
+    },
+    {
+      "id": "Q-7",
+      "text": "Is the move to error/ also copy, check and delete, so that its failure fails the run?",
+      "blocking": false,
+      "proposed_assumption": "Yes. It is a move like any other and only skips the tag change."
+    },
+    {
+      "id": "Q-8",
+      "text": "Files moved to error/ get 'no tag change'. Should they keep the source's tags?",
+      "blocking": false,
+      "proposed_assumption": "Yes. The copy carries the source's tags and metadata over unchanged."
+    },
+    {
+      "id": "Q-9",
+      "text": "S3 tag values are limited to 256 characters and a restricted character set. What happens to longer paths or paths with other characters?",
+      "blocking": false,
+      "proposed_assumption": "Tagging is attempted with the full path. A rejection is logged as a warning and the file still counts as moved."
+    },
+    {
+      "id": "Q-10",
+      "text": "What happens if the delete fails after a successful copy?",
+      "blocking": false,
+      "proposed_assumption": "The file fails and the run fails. The target stays, and the next run copies the file again (overwriting the target) and retries the delete."
+    },
+    {
+      "id": "Q-11",
+      "text": "Where should the per-file report go?",
+      "blocking": false,
+      "proposed_assumption": "The run log, one line per file: source, target, rule or error reason, status."
+    },
+    {
+      "id": "Q-12",
+      "text": "May runs overlap if one run takes longer than 45 minutes?",
+      "blocking": false,
+      "proposed_assumption": "No: at most one run is active at a time."
+    },
+    {
+      "id": "Q-13",
+      "text": "'*/45 * * * *' fires at :00 and :45 of each hour, not every 45 minutes. Is that intended?",
+      "blocking": false,
+      "proposed_assumption": "Use the cron exactly as written."
+    },
+    {
+      "id": "Q-14",
+      "text": "Does a file name like '.DS_Store' or 'a.' count as having an extension?",
+      "blocking": false,
+      "proposed_assumption": "Any name that contains a '.' counts as having an extension, so the file is processed."
+    }
+  ],
+  "clauses": 58,
+  "env_values": [
+    {
+      "name": "sas_bucket",
+      "value": "dev-dpl-dstore-sas-eu-north-1-992382551516",
+      "description": "The environment's SAS S3 bucket, used as both source and destination"
+    },
+    {
+      "name": "aws_region",
+      "value": "eu-north-1",
+      "description": "AWS region of the SAS bucket"
+    }
+  ],
+  "requirement_sha256": "c09cd8b5161283d99875f5571a44b569ac94740b033e533fd385bfbc369057ee",
   "analyzed_by": {
     "task": "analyze_requirements",
     "skill": "finalizing-pipeline-requirements",
     "skill_sha256": "82e673c92eefcdae59942ddefb6885846afe58ed3f2e6557a714a317c850c9d9",
-    "prompt_sha256": "12b212e4efe825a564eab84dcc66dbc31313c96311c81fc0670b9421f1af8ed1",
-    "schema_sha256": "f86b7e05f51f9699e269809029e3fdb816ab038c1a8a284692148d723528e8b2",
-    "model": "claude-sonnet-5-5",
+    "prompt_sha256": "b11eed1282d56ef524a1e9d13aa395178b24173eb28dc0af69503581c444aea0",
+    "schema_sha256": "2bd9f81f68f1c2e5a0a4cd9aa8d18e7ad7f01fb14d6cf6a41ed8e6207edb09fe",
+    "model": "claude-opus-5-5",
     "prompt_version": "1"
   }
 }

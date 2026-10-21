@@ -1,0 +1,304 @@
+  - id: R-TRG-1
+    component: trigger
+    text: The pipeline runs on the cron schedule "*/45 * * * *", with no events.
+    source_quote: Run on the cron schedule "*/45 * * * *" (no events).
+    kind: stated
+  - id: R-TRG-2
+    component: trigger
+    text: Each run processes every file currently under incoming/.
+    source_quote: Each run processes every file currently under incoming/.
+    kind: stated
+  - id: R-TRG-3
+    component: trigger
+    text: A failed run is retried up to 2 times, 2 minutes apart.
+    source_quote: 'retries: 2 retry_delay_minutes: 2'
+    kind: stated
+  - id: R-TRG-4
+    component: trigger
+    text: The schedule starts on 2026-10-01.
+    source_quote: 'start_date: 2026-10-01'
+    kind: stated
+  - id: R-TRG-5
+    component: trigger
+    text: At most one run is active at a time.
+    source_quote: ''
+    kind: assumed
+  - id: R-SRC-1
+    component: source
+    text: The source is the environment's SAS S3 bucket in region eu-north-1.
+    source_quote: The environment's SAS S3 bucket in region eu-north-1 (set in the source and destination settings).
+    kind: stated
+  - id: R-SRC-2
+    component: source
+    text: Source and destination are the same bucket.
+    source_quote: Source and destination are the same bucket.
+    kind: stated
+  - id: R-SRC-3
+    component: source
+    text: Every object under the prefix incoming/ is listed, at any depth.
+    source_quote: List every object under the prefix incoming/, at any depth.
+    kind: stated
+  - id: R-SRC-4
+    component: source
+    text: Paths are taken relative to incoming/.
+    source_quote: Paths are taken relative to incoming/.
+    kind: stated
+  - id: R-SRC-5
+    component: source
+    text: Folder markers (keys ending in '/') are skipped silently.
+    source_quote: folder markers (keys ending in "/")
+    kind: stated
+  - id: R-SRC-6
+    component: source
+    text: Files directly under incoming/ with no study folder are skipped silently.
+    source_quote: files directly under incoming/ with no study folder (e.g. incoming/readme.txt)
+    kind: stated
+  - id: R-SRC-7
+    component: source
+    text: Files whose name has no '.' extension are skipped silently.
+    source_quote: files whose name has no "." extension
+    kind: stated
+  - id: R-SRC-8
+    component: source
+    text: Skipped files are not moved and not reported.
+    source_quote: Skip silently (do not move, do not report)
+    kind: stated
+  - id: R-SRC-9
+    component: source
+    text: Each remaining file is its own package, so a problem with one file does not stop the others.
+    source_quote: Each remaining file is its own package, so a problem with one file does not stop the others.
+    kind: stated
+  - id: R-SRC-10
+    component: source
+    text: Study ID = the first folder after incoming/, used exactly as written.
+    source_quote: Study ID = the first folder after incoming/, used exactly as written (case and hyphens kept).
+    kind: stated
+  - id: R-TRN-1
+    component: transformation
+    text: 'There is no transformation: files are never opened, renamed or changed.'
+    source_quote: None. Files are never opened, renamed or changed. Only their location changes.
+    kind: stated
+  - id: R-DST-1
+    component: destination
+    text: The target is decided from the folder path only, and the file name is always kept.
+    source_quote: Decide the target using the folder path only (the path without the file name). The file name is always
+      kept.
+    kind: stated
+  - id: R-DST-2
+    component: destination
+    text: Data format = adam if the folder path contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise raw if 
+      it contains raw/.
+    source_quote: 'Data format from the folder path: adam if it contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise
+      raw if it contains raw/'
+    kind: stated
+  - id: R-DST-3
+    component: destination
+    text: restricted_raw/ counts as raw.
+    source_quote: (so restricted_raw/ also counts as raw)
+    kind: stated
+  - id: R-DST-4
+    component: destination
+    text: For anonymised folders the data format comes from _adam_, _sdtm_, _raw_ or _restricted_raw_ (= raw).
+    source_quote: For anonymised folders the data format comes from _adam_, _sdtm_, _raw_ or _restricted_raw_ (= raw).
+    kind: stated
+  - id: R-DST-5
+    component: destination
+    text: Last folder = the folder that directly contains the file.
+    source_quote: '"Last folder" = the folder that directly contains the file.'
+    kind: stated
+  - id: R-DST-6
+    component: destination
+    text: Every rule is checked, and exactly one rule must match.
+    source_quote: Check every rule below. Exactly one rule must match.
+    kind: stated
+  - id: R-DST-7
+    component: destination
+    text: CDAP matches when the path contains /data_reuse/ and /cdap_ and a data format.
+    source_quote: 'CDAP: path contains /data_reuse/ and /cdap_ and a data format.'
+    kind: stated
+  - id: R-DST-8
+    component: destination
+    text: CDAP with /cdap_csr → {study}/extended_primary_use/primary/{format}/{file}.
+    source_quote: contains /cdap_csr → {study}/extended_primary_use/primary/{format}/{file}
+    kind: stated
+  - id: R-DST-9
+    component: destination
+    text: CDAP with a last folder containing _ia → third '_' part written as ia_+rest → 
+      {study}/extended_primary_use/interim/{format}/ia_300/{file}.
+    source_quote: else if the last folder contains _ia → take the third "_" part of the last folder (cdap_20210617_ia300
+      → ia300) and write it as ia_ + the rest (ia_300)
+    kind: stated
+  - id: R-DST-10
+    component: destination
+    text: CDAP interim with fewer than 3 '_' parts in the last folder → error.
+    source_quote: fewer than 3 parts → error
+    kind: stated
+  - id: R-DST-11
+    component: destination
+    text: Other CDAP → second '_' part of the last folder → {study}/extended_primary_use/other/{format}/{part}/{file}.
+    source_quote: else → second "_" part of the last folder (cdap_20210617 → 20210617)
+    kind: stated
+  - id: R-DST-12
+    component: destination
+    text: CDAP other with fewer than 2 '_' parts → error.
+    source_quote: fewer than 2 parts → error
+    kind: stated
+  - id: R-DST-13
+    component: destination
+    text: 'IDAP: /data_reuse/ and /idap and a data format → {study}/internal_reuse/{format}/{last folder}/{file}.'
+    source_quote: 'IDAP: path contains /data_reuse/ and /idap and a data format → {study}/internal_reuse/{format}/{last folder}/{file}'
+    kind: stated
+  - id: R-DST-14
+    component: destination
+    text: 'MED: /data_reuse/ and /med and a data format → {study}/external_reuse/{format}/{last folder}/{file}.'
+    source_quote: 'MED: path contains /data_reuse/ and /med and a data format → {study}/external_reuse/{format}/{last folder}/{file}'
+    kind: stated
+  - id: R-DST-15
+    component: destination
+    text: ANON matches when the path contains _anon_ and an underscore data format.
+    source_quote: 'ANON: path contains _anon_ and an underscore data format.'
+    kind: stated
+  - id: R-DST-16
+    component: destination
+    text: ANON with _anon_csr → {study}/anonymised/primary/{format}/{file}.
+    source_quote: contains _anon_csr → {study}/anonymised/primary/{format}/{file}
+    kind: stated
+  - id: R-DST-17
+    component: destination
+    text: ANON whose last '_' part of the last folder starts with lowercase ia (case-sensitive) → 
+      {study}/anonymised/interim/{format}/ia_{rest}/{file}.
+    source_quote: starts with lowercase ia, case-sensitive (ia500) → {study}/anonymised/interim/{format}/ia_500/{file}
+    kind: stated
+  - id: R-DST-18
+    component: destination
+    text: Other ANON → {study}/anonymised/other/{format}/{last part}/{file}.
+    source_quote: otherwise (20220120) → {study}/anonymised/other/{format}/20220120/{file}
+    kind: stated
+  - id: R-DST-19
+    component: destination
+    text: CDAR matches when the path contains /cdar/ and a data format.
+    source_quote: 'CDAR: path contains /cdar/ and a data format.'
+    kind: stated
+  - id: R-DST-20
+    component: destination
+    text: Reporting level = the folder right after the folder named 'ar' (case-insensitive, compared in lowercase).
+    source_quote: reporting level = the folder right after the folder named "ar" (case-insensitive, compared in 
+      lowercase)
+    kind: stated
+  - id: R-DST-21
+    component: destination
+    text: No 'ar' folder, or a reporting level of adam, sdtm or raw → error.
+    source_quote: no "ar" folder, or the reporting level is adam, sdtm or raw → error
+    kind: stated
+  - id: R-DST-22
+    component: destination
+    text: Reporting level csr → {study}/primary/complete/{format}/{file}.
+    source_quote: csr → {study}/primary/complete/{format}/{file}
+    kind: stated
+  - id: R-DST-23
+    component: destination
+    text: Reporting level starting with ia → remove 'ia' and any leading '_', add 'ia_' → 
+      {study}/primary/interim/{format}/{ia_x}/{file}.
+    source_quote: starts with ia → remove "ia" and any leading "_", then add "ia_" (ia1 → ia_1, ia_psc → ia_psc)
+    kind: stated
+  - id: R-DST-24
+    component: destination
+    text: Any other reporting level → {study}/primary/other/{format}/{level}/{file}.
+    source_quote: anything else (bdr200) → {study}/primary/other/{format}/bdr200/{file}
+    kind: stated
+  - id: R-DST-25
+    component: destination
+    text: 'OTHERS: /data_reuse/ and a data format and none of /med, /cdap, /idap, /anon, _anon_ → {study}/other/{format}/{last
+      folder}/{file}.'
+    source_quote: 'OTHERS: path contains /data_reuse/ and a data format, and none of /med, /cdap, /idap, /anon, _anon_'
+    kind: stated
+  - id: R-DST-26
+    component: destination
+    text: 'DEFAULT: a path with none of /data_reuse/, _anon_, /cdar/ → the same path with incoming/ removed.'
+    source_quote: 'DEFAULT (pass-through): path has none of /data_reuse/, _anon_, /cdar/ → the same path (incoming/ removed)'
+    kind: stated
+  - id: R-DST-27
+    component: destination
+    text: No match, more than one match, or a target that cannot be worked out → error/{path without incoming/}.
+    source_quote: No rule matches, more than one rule matches, or the target cannot be worked out → move the file to 
+      error/{path without incoming/}.
+    kind: stated
+  - id: R-DST-28
+    component: destination
+    text: A file is never dropped.
+    source_quote: Never drop a file.
+    kind: stated
+  - id: R-DST-29
+    component: destination
+    text: Path-contains checks run on the folder path relative to incoming/, wrapped in leading and trailing '/'.
+    source_quote: ''
+    kind: assumed
+  - id: R-RUN-1
+    component: run
+    text: 'Files are moved, not copied: server-side copy that supports files larger than 5 GiB.'
+    source_quote: 'Move, not copy: copy server-side (files can be larger than 5 GiB)'
+    kind: stated
+  - id: R-RUN-2
+    component: run
+    text: After the copy, the pipeline confirms the target exists.
+    source_quote: confirm the target exists
+    kind: stated
+  - id: R-RUN-3
+    component: run
+    text: After the check, the source is deleted from incoming/.
+    source_quote: then delete the source from incoming/
+    kind: stated
+  - id: R-RUN-4
+    component: run
+    text: If the copy or the check fails, the source stays in incoming/ and that file fails.
+    source_quote: If the copy or the check fails, leave the source in incoming/ so the next run retries it; that file 
+      fails.
+    kind: stated
+  - id: R-RUN-5
+    component: run
+    text: An existing object at the target is overwritten.
+    source_quote: An existing object at the target is overwritten.
+    kind: stated
+  - id: R-RUN-6
+    component: run
+    text: 'After a successful move, all tags on the target are replaced by exactly one tag: ADDITIONAL_TAG = the original
+      path without incoming/.'
+    source_quote: 'After a successful move, replace all tags on the target with exactly one tag: ADDITIONAL_TAG = the original
+      path without incoming/.'
+    kind: stated
+  - id: R-RUN-7
+    component: run
+    text: A tagging failure is only a warning, and the file still counts as moved.
+    source_quote: A tagging failure is only a warning (the file still counts as moved).
+    kind: stated
+  - id: R-RUN-8
+    component: run
+    text: Files moved to error/ get no tag change.
+    source_quote: Files moved to error/ get no tag change.
+    kind: stated
+  - id: R-RUN-9
+    component: run
+    text: 'The pipeline reports one line per file: source, target, and rule or error reason.'
+    source_quote: 'Report one line per file: source, target, rule or error reason.'
+    kind: stated
+  - id: R-RUN-10
+    component: run
+    text: The run fails only if a copy, check or delete failed.
+    source_quote: The run fails only if a copy, check or delete failed.
+    kind: stated
+  - id: R-RUN-11
+    component: run
+    text: Moving files to error/ does not fail the run.
+    source_quote: Moving files to error/ does not fail the run.
+    kind: stated
+  - id: R-RUN-12
+    component: run
+    text: Moves to error/ also use copy, check and delete.
+    source_quote: ''
+    kind: assumed
+  - id: R-INF-1
+    component: infra
+    text: 'The bucket is set per environment (development: dev-dpl-dstore-sas-eu-north-1-992382551516) and lives in region
+      eu-north-1.'
+    source_quote: The environment's SAS S3 bucket in region eu-north-1
+    kind: stated

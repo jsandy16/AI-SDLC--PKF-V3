@@ -1,0 +1,6 @@
+  - name: sas_bucket
+    value: dev-dpl-dstore-sas-eu-north-1-992382551516
+    description: The environment's SAS S3 bucket, used as both source and destination
+  - name: aws_region
+    value: eu-north-1
+    description: AWS region of the SAS bucket
