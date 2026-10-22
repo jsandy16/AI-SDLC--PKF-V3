@@ -1,0 +1,140 @@
+api_version: pkf/v1
+kind: pipeline
+name: sas_restructure
+owner: data-eng
+start_date: '2026-10-01'
+description: Every 45-minute cron slot, move each SAS study file from incoming/ in the SAS bucket into the standard 
+  study folder layout in the same bucket, using folder-path rules; files that cannot be routed go to error/.
+requirement: "TRIGGER\n- Run on the cron schedule \"*/45 * * * *\" (no events). Each run processes every file currently under
+  incoming/.\n- A failed run is retried 2 times, 2 minutes apart.\n\nSOURCE\n- The environment's SAS S3 bucket in region eu-north-1
+  (set per environment). Source and destination are the same bucket.\n- List every object under the prefix incoming/, at any
+  depth. Paths are taken relative to incoming/.\n- Skip silently (do not move, do not report): folder markers (keys ending
+  in \"/\"), files directly under incoming/ with no study folder (e.g. incoming/readme.txt), and files whose name has no \"\
+  .\" extension.\n- Each remaining file is its own package, so a problem with one file does not stop the others.\n- Study
+  ID = the first folder after incoming/, used exactly as written (case and hyphens kept).\n\nTRANSFORMATION\n- None. Files
+  are never opened, renamed or changed. Only their location changes.\n\nDESTINATION (the same bucket)\n- The target is decided
+  from the folder path only (the path relative to incoming/ without the file name). The file name is always kept.\n- Data
+  format (slash format) from the folder path: adam if it contains /adam/, otherwise sdtm if it contains /sdtm/, otherwise
+  raw if it contains raw/ (so restricted_raw/ also counts as raw).\n- For anonymised folders the data format (underscore format)
+  comes from _adam_, _sdtm_, _raw_ or _restricted_raw_ (= raw).\n- \"Last folder\" = the folder that directly contains the
+  file.\n- Every rule below is checked. Exactly one rule must match.\n  1. CDAP: path contains /data_reuse/ and /cdap_ and
+  a data format.\n     - contains /cdap_csr -> {study}/extended_primary_use/primary/{format}/{file}\n     - else if the last
+  folder contains _ia -> take the third \"_\" part of the last folder (cdap_20210617_ia300 -> ia300), write it as ia_ + the
+  rest (ia_300) -> {study}/extended_primary_use/interim/{format}/ia_300/{file}; fewer than 3 parts -> error\n     - else ->
+  second \"_\" part of the last folder (cdap_20210617 -> 20210617) -> {study}/extended_primary_use/other/{format}/20210617/{file};
+  fewer than 2 parts -> error\n  2. IDAP: path contains /data_reuse/ and /idap and a data format -> {study}/internal_reuse/{format}/{last
+  folder}/{file}\n  3. MED: path contains /data_reuse/ and /med and a data format -> {study}/external_reuse/{format}/{last
+  folder}/{file}\n  4. ANON: path contains _anon_ and an underscore data format.\n     - contains _anon_csr -> {study}/anonymised/primary/{format}/{file}\n\
+  \     - else take the last \"_\" part of the last folder: if it starts with lowercase ia, case-sensitive (ia500) -> {study}/anonymised/interim/{format}/ia_500/{file};
+  otherwise (20220120) -> {study}/anonymised/other/{format}/20220120/{file}\n  5. CDAR: path contains /cdar/ and a data format.\n\
+  \     - reporting level = the folder right after the folder named \"ar\" (case-insensitive, compared in lowercase)\n   \
+  \  - no \"ar\" folder, or the reporting level is adam, sdtm or raw -> error\n     - csr -> {study}/primary/complete/{format}/{file}\n\
+  \     - starts with ia -> remove \"ia\" and any leading \"_\", then add \"ia_\" (ia1 -> ia_1, ia_psc -> ia_psc) -> {study}/primary/interim/{format}/{ia_x}/{file}\n\
+  \     - anything else (bdr200) -> {study}/primary/other/{format}/bdr200/{file}\n  6. OTHERS: path contains /data_reuse/
+  and a data format, and none of /med, /cdap, /idap, /anon, _anon_ -> {study}/other/{format}/{last folder}/{file}\n  7. DEFAULT
+  (pass-through): path has none of /data_reuse/, _anon_, /cdar/ -> the same path (incoming/ removed)\n- No rule matches, more
+  than one rule matches, or the target cannot be worked out -> the file moves to error/{path without incoming/}. A file is
+  never dropped.\n- Examples: incoming/S-001/root/cdar/d000/S-001/ar/csr/adam/dev/data/a.sas7bdat -> S-001/primary/complete/adam/a.sas7bdat;
+  incoming/S-001/root/cdar/d000/S-001/adam/prod/data/b.sas7bdat (no \"ar\" folder) -> error/S-001/root/cdar/d000/S-001/adam/prod/data/b.sas7bdat.\n\
+  \nDELIVERY BEHAVIOUR\n- Move, not copy: copy server-side (files can be larger than 5 GiB), confirm the target exists, then
+  delete the source from incoming/.\n- If the copy or the check fails, the source stays in incoming/ so the next run retries
+  it; that file fails.\n- An existing object at the target is overwritten.\n- After a successful move, all tags on the target
+  are replaced with exactly one tag: ADDITIONAL_TAG = the original path without incoming/. A tagging failure is only a warning
+  (the file still counts as moved).\n- Files moved to error/ get no tag change.\n- One report line per file: source, target,
+  rule or error reason.\n- The run fails only if a copy, check or delete failed. Moving files to error/ does not fail the
+  run.\n"
+examples:
+  - name: cdar_routes
+    messages: []
+    conf:
+    listing:
+      - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/csr/adam/dev/data/data_area/a.sas7bdat:10
+      - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/ia100/sdtm/dev/data/data_area/b.sas7bdat:10
+      - incoming/d0000c00004/root/cdar/d000/d0000c00004/ar/bdr200/raw/dev/data/data_area/c.sas7bdat:10
+    params: {}
+    expected_keys:
+      - d0000c00004/primary/complete/adam/a.sas7bdat
+      - d0000c00004/primary/interim/sdtm/ia_100/b.sas7bdat
+      - d0000c00004/primary/other/raw/bdr200/c.sas7bdat
+    expect_error: false
+  - name: cdap_routes
+    messages: []
+    conf:
+    listing:
+      - incoming/d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/cdap_csr/a.sas7bdat:10
+      - incoming/d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/cdap_20210617_ia300/b.sas7bdat:10
+      - incoming/d0000c00004/root/data_reuse/d000/d0000c00004/ar/shared/adam/dev/data/cdap_20210617/c.sas7bdat:10
+    params: {}
+    expected_keys:
+      - d0000c00004/extended_primary_use/primary/raw/a.sas7bdat
+      - d0000c00004/extended_primary_use/interim/raw/ia_300/b.sas7bdat
+      - d0000c00004/extended_primary_use/other/adam/20210617/c.sas7bdat
+    expect_error: false
+  - name: idap_med_others
+    messages: []
+    conf:
+    listing:
+      - incoming/d0000c00004/data_reuse/d000/d0000c00004/ar/shared/raw/dev/data/idap_20200922/a.sas7bdat:10
+      - incoming/99-0001/root/data_reuse/d525/99-0001/med/adam/prod/data/adae.sas7bdat:10
+      - incoming/99-0001/root/data_reuse/d525/99-0001/shared/adam/prod/data/adsl.sas7bdat:10
+    params: {}
+    expected_keys:
+      - d0000c00004/internal_reuse/raw/idap_20200922/a.sas7bdat
+      - 99-0001/external_reuse/adam/data/adae.sas7bdat
+      - 99-0001/other/adam/data/adsl.sas7bdat
+    expect_error: false
+  - name: anon_routes
+    messages: []
+    conf:
+    listing:
+      - incoming/d0000c00004/root/d0000c00004_raw_anon_csr/a.sas7bdat:10
+      - incoming/d0000c00004/d0000c00004_raw_anon_20220101_ia500/b.sas7bdat:10
+      - incoming/d0000c00004/d0000c00004_raw_anon_20220120/c.sas7bdat:10
+    params: {}
+    expected_keys:
+      - d0000c00004/anonymised/primary/raw/a.sas7bdat
+      - d0000c00004/anonymised/interim/raw/ia_500/b.sas7bdat
+      - d0000c00004/anonymised/other/raw/20220120/c.sas7bdat
+    expect_error: false
+  - name: default_errors_and_skips
+    messages: []
+    conf:
+    listing:
+      - incoming/ABCD-0000-0000/Export_Inventory_2024-03-01.pdf:10
+      - incoming/99-0001/root/data_reuse/d525/99-0001/shared/prod/data/adae.sas7bdat:10
+      - incoming/99-0001/root/data_reuse/cdar/d168/99-0001/ar/csr/adam/prod/data/adae.sas7bdat:10
+      - incoming/99-0001/root/cdar/d168/99-0001/adam/prod/data/adae.sas7bdat:10
+      - incoming/readme.txt:10
+      - incoming/99-0001/root/data_reuse/d525/99-0001/shared/adam/prod/data/no_extension:10
+    params: {}
+    expected_keys:
+      - ABCD-0000-0000/Export_Inventory_2024-03-01.pdf
+      - error/99-0001/root/data_reuse/d525/99-0001/shared/prod/data/adae.sas7bdat
+      - error/99-0001/root/data_reuse/cdar/d168/99-0001/ar/csr/adam/prod/data/adae.sas7bdat
+      - error/99-0001/root/cdar/d168/99-0001/adam/prod/data/adae.sas7bdat
+    expect_error: false
+  - name: edge_cases
+    messages: []
+    conf:
+    listing:
+      - incoming/S-001/:0
+      - incoming/S-001/root/cdar/d000/S-001/AR/ia_psc/adam/dev/data/x.sas7bdat:10
+      - incoming/S-001/S-001_sdtm_anon_20230101_IA2/y.sas7bdat:10
+      - incoming/S-001/data_reuse/d000/S-001/shared/sdtm/dev/data/cdap_ia2/z.sas7bdat:10
+      - incoming/S-001/data_reuse/d000/S-001/shared/restricted_raw/dev/data/idap_x/w.sas7bdat:10
+    params: {}
+    expected_keys:
+      - S-001/primary/interim/adam/ia_psc/x.sas7bdat
+      - S-001/anonymised/other/sdtm/IA2/y.sas7bdat
+      - error/S-001/data_reuse/d000/S-001/shared/sdtm/dev/data/cdap_ia2/z.sas7bdat
+      - S-001/internal_reuse/raw/idap_x/w.sas7bdat
+    expect_error: false
+retries: 2
+retry_delay_minutes: 2
+tags:
+  - sas
+  - folder-restructure
+connection: sas_restructure_connection
+trigger: sas_restructure_schedule
+transformation:
+package_name: '{source}_{ds_nodash}'

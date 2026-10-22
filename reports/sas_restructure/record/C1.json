@@ -1,0 +1,33 @@
+{
+  "cost_usd": 0.722318,
+  "data": {
+    "answered": [
+      "ENV-sas_bucket"
+    ],
+    "assumed": [],
+    "assumptions": [
+      "analyst: The pipeline is named sas_restructure (from the request), not sas_folder_restructure (the document's name).",
+      "analyst: Path patterns such as /adam/, /data_reuse/ and raw/ are checked against the folder path relative to incoming/ with a '/' added at its start and end, so a pattern also matches the first or last folder.",
+      "analyst: All substring checks are case-sensitive except the 'ar' folder name and reporting level in CDAR (compared in lowercase); the ANON 'ia' check is case-sensitive as stated.",
+      "analyst: The CDAR reporting level is written in the target as found in the path (original case) after the ia_ normalisation; only the comparison is done in lowercase.",
+      "analyst: Underscore formats use the same precedence as slash formats: _adam_, then _sdtm_, then _raw_/_restricted_raw_.",
+      "analyst: In CDAP and ANON interim paths, 'ia_ + the rest' means the part with its leading 'ia' removed, prefixed with 'ia_' (ia300 -> ia_300).",
+      "analyst: A rule whose condition holds but whose target cannot be worked out (e.g. CDAR with no 'ar' folder) still counts as a match; the file goes to error/.",
+      "analyst: Error targets keep the full path relative to incoming/, including the file name.",
+      "analyst: The cron expression is kept as written; '*/45' in the minute field fires at minutes 0 and 45 of each hour, not strictly every 45 minutes.",
+      "analyst: Report lines are written to the run log; no separate report file is stated.",
+      "analyst: Moved files and error/ files are outside incoming/, so they are never picked up again.",
+      "analyst: Synthetic study IDs (99-0001, S-001) and file names replace the document's sample identifiers in the examples."
+    ],
+    "examples": 6,
+    "file": "pipelines/sas_restructure.yaml",
+    "name": "analyse",
+    "questions": []
+  },
+  "ended_at": "2026-10-22T06:52:12+00:00",
+  "inputs_sha256": "befe360f6f1956e83fb7f87c7b5bb171c410286187d45489783362a101ebf650",
+  "issues": [],
+  "stage": "C1",
+  "started_at": "2026-10-22T06:46:44+00:00",
+  "status": "ok"
+}

@@ -1,0 +1,72 @@
+{
+  "buckets": [],
+  "facts": {
+    "account_id": "992382551516",
+    "destination": {
+      "bucket": "dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516",
+      "custom_delivery": true,
+      "type": "s3"
+    },
+    "env": "dev",
+    "kms_keys": [],
+    "notifications": [],
+    "pipeline": "sas_restructure",
+    "queue": null,
+    "receive": "schedule",
+    "region": "eu-north-1",
+    "schedule": "*/45 * * * *",
+    "source": {
+      "bucket": "dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516",
+      "prefix": "",
+      "type": "s3"
+    },
+    "staging": null,
+    "warnings": [
+      "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516"
+    ]
+  },
+  "needs_apply": false,
+  "note": "nothing to apply \u2014 policy only",
+  "rendered_by": "pkf-studio 0.9.0",
+  "runtime_calls": [
+    [
+      "s3:ListBucket",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516"
+    ],
+    [
+      "s3:GetObject",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:GetObjectTagging",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:DeleteObject",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:PutObject",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:PutObjectTagging",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:GetObject",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:GetObjectTagging",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ],
+    [
+      "s3:AbortMultipartUpload",
+      "arn:aws:s3:::dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516/*"
+    ]
+  ],
+  "warnings": [
+    "destination keys are computed, so the policy allows writing anywhere in dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516"
+  ]
+}

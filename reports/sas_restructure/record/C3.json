@@ -1,0 +1,14 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "name": "units",
+    "planned": []
+  },
+  "ended_at": "2026-10-22T07:04:00+00:00",
+  "inputs_sha256": "802d2bac3b37cdffa274ad606d1c2582198c2dcd3c567735b12f799e23a197a4",
+  "issues": [],
+  "stage": "C3",
+  "started_at": "2026-10-22T07:03:55+00:00",
+  "status": "ok"
+}
