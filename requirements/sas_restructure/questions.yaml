@@ -1,0 +1,30 @@
+  - id: Q-1
+    text: Are path patterns (/adam/, /data_reuse/, /med, raw/ ...) case-sensitive, apart from the 'ar' folder and ANON 
+      'ia' rules?
+    blocking: false
+    proposed_assumption: Yes, case-sensitive.
+  - id: Q-2
+    text: Should patterns such as /adam/ also match when adam is the first or last folder of the folder path?
+    blocking: false
+    proposed_assumption: Yes; the folder path is checked with '/' added at both ends.
+  - id: Q-3
+    text: Is the CDAR reporting level written in the target in lowercase, or as found in the path?
+    blocking: false
+    proposed_assumption: As found in the path; only the comparison is lowercase.
+  - id: Q-4
+    text: In CDAP interim, if the third '_' part does not start with 'ia', what is written?
+    blocking: false
+    proposed_assumption: ia_ + the whole third part (leading 'ia' is removed only when present).
+  - id: Q-5
+    text: Cron '*/45 * * * *' fires at minutes 0 and 45 of every hour, not strictly every 45 minutes. Is that intended?
+    blocking: false
+    proposed_assumption: Keep the cron expression as written.
+  - id: Q-6
+    text: Where should the per-file report lines go (run log, a report object in S3)?
+    blocking: false
+    proposed_assumption: Run log only.
+  - id: Q-7
+    text: If a delete fails after a successful copy, the source stays and the next run copies it again (overwriting). Is
+      that acceptable?
+    blocking: false
+    proposed_assumption: Yes; the overwrite rule makes the retry safe.
