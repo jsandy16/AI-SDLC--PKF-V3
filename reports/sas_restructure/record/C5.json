@@ -1,0 +1,18 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "components": {
+      "destination/sas_restructure_destination": "ready",
+      "source/sas_incoming": "ready",
+      "trigger/sas_restructure_schedule": "ready"
+    },
+    "name": "components tested"
+  },
+  "ended_at": "2026-10-22T07:15:13+00:00",
+  "inputs_sha256": "2116a6e95606f6af83cdc68c8073041c37580c2cce232af8bb91cb65a086eab2",
+  "issues": [],
+  "stage": "C5",
+  "started_at": "2026-10-22T07:14:36+00:00",
+  "status": "ok"
+}

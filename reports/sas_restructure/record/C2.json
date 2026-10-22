@@ -1,0 +1,49 @@
+{
+  "cost_usd": 0.149094,
+  "data": {
+    "assumptions": [
+      "split: The source and destination bucket name is environment-specific and left as <REQUIRED>.",
+      "split: Each file is its own package, so the package_name template is only a placeholder. The files are moved by the custom delivery, not packaged.",
+      "split: Retry (2 times, 2 minutes apart) is described in the trigger requirement because the settings have no key for it.",
+      "split: Anything the catalogue cannot express (routing rules, move, tagging, report) is built by the destination planner as a custom_delivery step."
+    ],
+    "components": {
+      "destination": "sas_restructure_destination",
+      "source": "sas_incoming",
+      "trigger": "sas_restructure_schedule"
+    },
+    "name": "components",
+    "removed": [],
+    "to_fill_in": [
+      "destination.connection.bucket",
+      "source.connection.bucket"
+    ],
+    "written": [
+      "triggers\\sas_restructure_schedule.yaml",
+      "sources\\sas_incoming.yaml",
+      "destinations\\sas_restructure_destination.yaml",
+      "connections\\sas_restructure_connection.yaml"
+    ]
+  },
+  "ended_at": "2026-10-22T06:53:29+00:00",
+  "inputs_sha256": "adac6d51854c0d41503cef15a50b03d1aae4a27ab7831afa3e48a8bd36a397af",
+  "issues": [
+    {
+      "code": "required",
+      "file": "",
+      "loc": "",
+      "msg": "fill in destination.connection.bucket (left <REQUIRED> by the split)",
+      "severity": "warning"
+    },
+    {
+      "code": "required",
+      "file": "",
+      "loc": "",
+      "msg": "fill in source.connection.bucket (left <REQUIRED> by the split)",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C2",
+  "started_at": "2026-10-22T06:52:12+00:00",
+  "status": "ok"
+}

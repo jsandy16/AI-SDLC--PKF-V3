@@ -1,0 +1,22 @@
+{
+  "cost_usd": 0.0,
+  "data": {
+    "assumptions": [],
+    "name": "dev run",
+    "reason": "dev run failed; going on was approved"
+  },
+  "ended_at": "2026-10-22T08:52:10+00:00",
+  "inputs_sha256": "cd786a47a32447b7557db8c71043d229ce5d3ba2527fce6d22c8a2cab29e1dd5",
+  "issues": [
+    {
+      "code": "dev_run_failed_continued",
+      "file": "",
+      "loc": "",
+      "msg": "the dev run failed; you approved going on to the pull request without it",
+      "severity": "warning"
+    }
+  ],
+  "stage": "C9",
+  "started_at": "2026-10-22T08:51:55+00:00",
+  "status": "skipped"
+}
