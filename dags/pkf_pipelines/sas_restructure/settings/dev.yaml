@@ -1,7 +1,0 @@
-# Values that differ per environment, read when the pipeline runs (env(...) in pipeline.py).
-destination_bucket: dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516
-destination_region: eu-north-1
-source_bucket: dev-dpl-dstore-clinicalstudies-eu-north-1-992382551516
-source_region: eu-north-1
-staging_url: file:///tmp/pkf-staging
-trigger_region: eu-north-1
